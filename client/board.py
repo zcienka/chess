@@ -14,8 +14,9 @@ class Board:
         self.white = (182, 182, 182)
         self.black = (92, 92, 94)
         self.rectangle_size = 100
-        self.offset = (WINDOW_SIZE - self.width)/2
+        self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
+        self.board = []
 
     def draw(self):
         for i in range(8):
@@ -29,11 +30,10 @@ class Board:
                                      self.black,
                                      pygame.Rect(self.offset + self.rectangle_size*j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
 
-    def show_pieces(self, fen_sequence, WINDOW_SIZE):
+    def show_pieces(self, WINDOW_SIZE):
         piece_pos = 0
-        self.set_fen_sequence(fen_sequence)
 
-        for i, position in enumerate(fen_sequence):
+        for i, position in enumerate(self.fen_sequence):
             if position == "R":
                 img = self.scale_svg(WHITE_ROOK_SVG)
                 self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
@@ -103,18 +103,72 @@ class Board:
         return img
 
     def get_row_col_and_piece(self, mouse_x, mouse_y):
-        a = math.floor((mouse_x - self.offset) / self.rectangle_size)
-        b = math.floor((mouse_y - self.offset) / self.rectangle_size)
-        sequence_by_rows = self.fen_sequence.split("/")[b]
-        row = []
+        col = math.floor((mouse_x - self.offset) / self.rectangle_size)
+        row = math.floor((mouse_y - self.offset) / self.rectangle_size)
+        # print(mouse_x, mouse_y)
+        if col < 0 or col > 7 or row < 0 or row > 7:
+            return col, row, None
 
-        for piece in sequence_by_rows:
-            if not piece.isdigit():
-                row.append(piece)
-            else:
-                row.extend([None for _ in range(int(piece))])
+        # sequence_by_rows = self.fen_sequence.split("/")[b]
+        # row = []
 
-        return a, b, row[a]
+        # for piece in sequence_by_rows:
+        #     if not piece.isdigit():
+        #         row.append(piece)
+        #     else:
+        #         row.extend([None for _ in range(int(piece))])
+
+        return row, col, self.board[row][col]
 
     def set_fen_sequence(self, sequence):
         self.fen_sequence = sequence
+
+    def convert_fen_sequence_to_board(self):
+        sequence_by_rows = self.fen_sequence.split("/")
+        board = []
+
+        for i in range(8):
+            row = []
+            for piece in sequence_by_rows[i]:
+                if not piece.isdigit():
+                    row.append(piece)
+                else:
+                    row.extend([None for _ in range(int(piece))])
+            board.append(row)
+        self.board = board
+
+    def update(self, row, col, piece):
+        self.board[row][col] = piece
+
+    def convert_board_to_fen_sequence(self):
+        fen_sequence = []
+
+        for row in self.board:
+            none_count = 0
+
+            for piece in row:
+                if piece == None:
+                    none_count += 1
+                else:
+                    if none_count != 0:
+                        fen_sequence += str(none_count)
+                        none_count = 0
+                    fen_sequence += piece
+
+            if none_count != 0:
+                fen_sequence += str(none_count)
+            fen_sequence += '/'
+
+        self.fen_sequence = ''.join(fen_sequence)
+
+    def get_board(self):
+        return self.board
+
+    def show_valid_moves(self, valid_moves):
+
+        circle_radius = 15
+        for valid_move in valid_moves:
+            pygame.draw.circle(self.surface, (64, 64, 64), (self.offset + self.rectangle_size *
+                           valid_move[1] + self.rectangle_size / 2, self.offset + self.rectangle_size * valid_move[0] + self.rectangle_size / 2), circle_radius)
+
+ 

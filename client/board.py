@@ -30,65 +30,58 @@ class Board:
                                      self.black,
                                      pygame.Rect(self.offset + self.rectangle_size*j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
 
-    def show_pieces(self, WINDOW_SIZE):
+    def show_pieces(self, pieces, initial_run=False):
         piece_pos = 0
 
         for i, position in enumerate(self.fen_sequence):
+            row = math.floor(piece_pos / 8)
+            col = piece_pos % 8
+
             if position == "R":
                 img = self.scale_svg(WHITE_ROOK_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "N":
                 img = self.scale_svg(WHITE_KNIGHT_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "B":
                 img = self.scale_svg(WHITE_BISHOP_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "Q":
                 img = self.scale_svg(WHITE_QUEEN_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "K":
                 img = self.scale_svg(WHITE_KING_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
+
+                if initial_run:
+                    pieces.set_white_king_pos([row, col])
             elif position == "P":
                 img = self.scale_svg(WHITE_PAWN_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
-
             elif position == "r":
                 img = self.scale_svg(BLACK_ROOK_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "n":
                 img = self.scale_svg(BLACK_KNIGHT_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "b":
                 img = self.scale_svg(BLACK_BISHOP_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "q":
                 img = self.scale_svg(BLACK_QUEEN_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
             elif position == "k":
                 img = self.scale_svg(BLACK_KING_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
+
+                if initial_run:
+                    pieces.set_black_king_pos([row, col])
             elif position == "p":
                 img = self.scale_svg(BLACK_PAWN_SVG)
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (piece_pos % 8),
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * math.floor(piece_pos / 8))))
 
+            if position != "/" and not position.isdigit():
+                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
+                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
+
+            
             if not position.isdigit():
                 if position != "/":
                     piece_pos += 1
             else:
                 piece_pos += int(position)
+        if initial_run:
+            self.set_king_valid_moves(pieces)
+        # if initial_run:
+        #     pieces.get_valid_moves([row, col])
 
     def scale_svg(self, svg_file):
         DPI = 100
@@ -160,15 +153,34 @@ class Board:
             fen_sequence += '/'
 
         self.fen_sequence = ''.join(fen_sequence)
+        print(self.fen_sequence)
 
     def get_board(self):
         return self.board
 
     def show_valid_moves(self, valid_moves):
-
         circle_radius = 15
+
         for valid_move in valid_moves:
             pygame.draw.circle(self.surface, (64, 64, 64), (self.offset + self.rectangle_size *
-                           valid_move[1] + self.rectangle_size / 2, self.offset + self.rectangle_size * valid_move[0] + self.rectangle_size / 2), circle_radius)
+                                                            valid_move[1] + self.rectangle_size / 2, self.offset + self.rectangle_size * valid_move[0] + self.rectangle_size / 2), circle_radius)
 
- 
+    def set_king_valid_moves(self, pieces):
+        pieces.clear_king_moves()
+        white_king_pos = pieces.get_white_king_pos()
+        black_king_pos = pieces.get_black_king_pos()
+
+        w_moves = pieces.get_initial_king_moves(white_king_pos)
+        b_moves = pieces.get_initial_king_moves(black_king_pos)
+
+        pieces.set_white_king_moves(w_moves)
+        pieces.set_black_king_moves(b_moves)
+
+        for i, position in enumerate(self.board):
+            for j in range(len(position)):
+                if position[j] != None:
+                    pieces.get_valid_moves([i, j])
+            
+        print(position)
+        
+

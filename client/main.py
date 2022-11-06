@@ -9,8 +9,11 @@ def main():
     pygame.init()
     pygame.display.set_caption("Chess")
     surface = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
+    FPS = 60
+    # fen_sequence = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/" # mating test
+    # fen_sequence = "4k3/8/4q3/8/8/8/6K1/4R3" # pin test #1
+    fen_sequence = "8/8/1Rr1k3/8/4q3/4R3/8/4K3" # pin test #2
 
-    fen_sequence = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/"
     # fen_sequence = "r1b1k2r/pp1n1ppp/5n2/1Bb1q3/8/4N3/PPP2PPP/R1BQK2R"
     # fen_sequence = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 
@@ -54,7 +57,6 @@ def main():
 
                 if piece != None:
                     valid_moves = pieces.get_valid_moves([row, col])
-                    # print(valid_moves)
                     board.show_valid_moves(valid_moves)
                     drop_pos = True
                     selected_piece = row, col, piece
@@ -65,11 +67,19 @@ def main():
                     new_row, new_col, drop_piece = board.get_row_col_and_piece(
                         mouse_x, mouse_y)
 
-                    print([new_row, new_col] in valid_moves)
+                    # print([new_row, new_col] in valid_moves)
                     if [old_row, old_col] != [new_row, new_col] and [new_row, new_col] in valid_moves:
                         board.update(old_row, old_col, None)
                         board.update(new_row, new_col, piece)
+                        pieces.update_board(board)
 
+                        # print(pieces.is_own_king_mate(piece, board.get_board()))
+
+                        # if pieces.is_own_king_mate(piece, board.get_board()):
+                        #     board.update(old_row, old_col, piece)
+                        #     board.update(new_row, new_col, drop_piece)
+                        #     pieces.update_board(board)
+                            
                         board.convert_board_to_fen_sequence()
 
                         board.draw()
@@ -83,12 +93,10 @@ def main():
 
                         board.set_king_valid_moves(pieces)
 
-    
-
                 selected_piece = None
                 drop_pos = False
 
-        clock.tick(40)
+        clock.tick(FPS)
         pygame.display.update()
 
 

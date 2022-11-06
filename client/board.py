@@ -19,8 +19,8 @@ class Board:
         self.board = []
 
     def draw(self):
-        for i in range(8):
-            for j in range(8):
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
                 if (i + j) % 2 == 0:
                     pygame.draw.rect(self.surface,
                                      self.white,
@@ -34,8 +34,8 @@ class Board:
         piece_pos = 0
 
         for i, position in enumerate(self.fen_sequence):
-            row = math.floor(piece_pos / 8)
-            col = piece_pos % 8
+            row = math.floor(piece_pos / BOARD_SIZE)
+            col = piece_pos % BOARD_SIZE
 
             if position == "R":
                 img = self.scale_svg(WHITE_ROOK_SVG)
@@ -72,16 +72,14 @@ class Board:
                 self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
                                                             self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
 
-            
             if not position.isdigit():
                 if position != "/":
                     piece_pos += 1
             else:
                 piece_pos += int(position)
+
         if initial_run:
             self.set_king_valid_moves(pieces)
-        # if initial_run:
-        #     pieces.get_valid_moves([row, col])
 
     def scale_svg(self, svg_file):
         DPI = 100
@@ -98,18 +96,9 @@ class Board:
     def get_row_col_and_piece(self, mouse_x, mouse_y):
         col = math.floor((mouse_x - self.offset) / self.rectangle_size)
         row = math.floor((mouse_y - self.offset) / self.rectangle_size)
-        # print(mouse_x, mouse_y)
-        if col < 0 or col > 7 or row < 0 or row > 7:
+
+        if col < 0 or col >= BOARD_SIZE or row < 0 or row >= BOARD_SIZE:
             return col, row, None
-
-        # sequence_by_rows = self.fen_sequence.split("/")[b]
-        # row = []
-
-        # for piece in sequence_by_rows:
-        #     if not piece.isdigit():
-        #         row.append(piece)
-        #     else:
-        #         row.extend([None for _ in range(int(piece))])
 
         return row, col, self.board[row][col]
 
@@ -120,7 +109,7 @@ class Board:
         sequence_by_rows = self.fen_sequence.split("/")
         board = []
 
-        for i in range(8):
+        for i in range(BOARD_SIZE):
             row = []
             for piece in sequence_by_rows[i]:
                 if not piece.isdigit():
@@ -150,10 +139,9 @@ class Board:
 
             if none_count != 0:
                 fen_sequence += str(none_count)
-            fen_sequence += '/'
+            fen_sequence += "/"
 
-        self.fen_sequence = ''.join(fen_sequence)
-        print(self.fen_sequence)
+        self.fen_sequence = "".join(fen_sequence)
 
     def get_board(self):
         return self.board
@@ -162,8 +150,11 @@ class Board:
         circle_radius = 15
 
         for valid_move in valid_moves:
-            pygame.draw.circle(self.surface, (64, 64, 64), (self.offset + self.rectangle_size *
-                                                            valid_move[1] + self.rectangle_size / 2, self.offset + self.rectangle_size * valid_move[0] + self.rectangle_size / 2), circle_radius)
+            pygame.draw.circle(self.surface,
+                               (64, 64, 64),
+                               (self.offset + self.rectangle_size * valid_move[1] + self.rectangle_size / 2,
+                                self.offset + self.rectangle_size * valid_move[0] + self.rectangle_size / 2),
+                               circle_radius)
 
     def set_king_valid_moves(self, pieces):
         pieces.clear_king_moves()
@@ -180,7 +171,5 @@ class Board:
             for j in range(len(position)):
                 if position[j] != None:
                     pieces.get_valid_moves([i, j])
-            
-        print(position)
-        
 
+        # print(position)

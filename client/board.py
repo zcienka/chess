@@ -4,7 +4,7 @@ import svgutils
 import io
 import cairosvg
 import math
-
+from position import Position
 
 class Board:
     def __init__(self, surface, WINDOW_SIZE, fen_sequence):
@@ -16,7 +16,6 @@ class Board:
         self.rectangle_size = 100
         self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
-        self.board = []
 
     def draw(self):
         for i in range(BOARD_SIZE):
@@ -30,12 +29,13 @@ class Board:
                                      self.black,
                                      pygame.Rect(self.offset + self.rectangle_size * j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
 
-    def show_pieces(self, pieces, initial_run=False):
+    def show_pieces(self, game_engine, initial_run=False):
         piece_pos = 0
 
         for i, position in enumerate(self.fen_sequence):
             row = math.floor(piece_pos / BOARD_SIZE)
             col = piece_pos % BOARD_SIZE
+            pos = Position(row, col)
 
             if position == "R":
                 img = self.scale_svg(WHITE_ROOK_SVG)
@@ -49,7 +49,7 @@ class Board:
                 img = self.scale_svg(WHITE_KING_SVG)
 
                 if initial_run:
-                    pieces.set_white_king_pos([row, col])
+                    game_engine.set_white_king_pos(pos)
             elif position == "P":
                 img = self.scale_svg(WHITE_PAWN_SVG)
             elif position == "r":
@@ -64,7 +64,7 @@ class Board:
                 img = self.scale_svg(BLACK_KING_SVG)
 
                 if initial_run:
-                    pieces.set_black_king_pos([row, col])
+                    game_engine.set_black_king_pos(pos)
             elif position == "p":
                 img = self.scale_svg(BLACK_PAWN_SVG)
 
@@ -78,8 +78,8 @@ class Board:
             else:
                 piece_pos += int(position)
 
-        if initial_run:
-            self.set_king_valid_moves(pieces)
+        # if initial_run:
+        #     self.set_king_valid_moves(pieces)
 
     def scale_svg(self, svg_file):
         DPI = 100
@@ -93,19 +93,21 @@ class Board:
 
         return img
 
-    def get_row_col_and_piece(self, mouse_x, mouse_y):
+    def get_row_col_and_piece(self, mouse_x, mouse_y, game_engine):
         col = math.floor((mouse_x - self.offset) / self.rectangle_size)
         row = math.floor((mouse_y - self.offset) / self.rectangle_size)
 
         if col < 0 or col >= BOARD_SIZE or row < 0 or row >= BOARD_SIZE:
-            return col, row, None
+            return Position(row, col), None
 
-        return row, col, self.board[row][col]
+        board = game_engine.get_board()
+
+        return Position(row, col), board[row][col]
 
     def set_fen_sequence(self, sequence):
         self.fen_sequence = sequence
 
-    def convert_fen_sequence_to_board(self):
+    def get_board_from_fen_sequence(self):
         sequence_by_rows = self.fen_sequence.split("/")
         board = []
 
@@ -117,15 +119,16 @@ class Board:
                 else:
                     row.extend([None for _ in range(int(piece))])
             board.append(row)
-        self.board = board
+        # self.board = board
+        return board
 
-    def update(self, row, col, piece):
-        self.board[row][col] = piece
 
-    def convert_board_to_fen_sequence(self):
+
+    def convert_board_to_fen_sequence(self, game_engine):
         fen_sequence = []
+        board = game_engine.get_board()
 
-        for row in self.board:
+        for row in board:
             none_count = 0
 
             for piece in row:
@@ -143,8 +146,8 @@ class Board:
 
         self.fen_sequence = "".join(fen_sequence)
 
-    def get_board(self):
-        return self.board
+    # def get_board(self):
+    #     return self.board
 
     def show_valid_moves(self, valid_moves):
         circle_radius = 15
@@ -152,31 +155,31 @@ class Board:
         for valid_move in valid_moves:
             pygame.draw.circle(self.surface,
                                (64, 64, 64),
-                               (self.offset + self.rectangle_size * valid_move[1] + self.rectangle_size / 2,
-                                self.offset + self.rectangle_size * valid_move[0] + self.rectangle_size / 2),
+                               (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
+                                self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
                                circle_radius)
 
-    def set_king_valid_moves(self, pieces):
-        pieces.clear_king_moves()
-        white_king = pieces.get_white_king()
-        black_king = pieces.get_black_king()
+    def set_king_valid_moves(self, game_engine):
+        game_engine.clear_king_moves()
+        white_king = game_engine.get_white_king()
+        black_king = game_engine.get_black_king()
 
-        w_moves = pieces.get_initial_king_moves(white_king.position)
-        b_moves = pieces.get_initial_king_moves(black_king.position)
+        w_moves = game_engine.get_initial_king_moves(white_king.position)
+        b_moves = game_engine.get_initial_king_moves(black_king.position)
 
-        pieces.set_white_king_moves(w_moves)
-        pieces.set_black_king_moves(b_moves)
+        game_engine.set_white_king_moves(w_moves)
+        game_engine.set_black_king_moves(b_moves)
 
-        for i, position in enumerate(self.board):
+        game_board = game_engine.get_board()
+
+        for i, position in enumerate(game_board):
             for j in range(len(position)):
                 if position[j] != None:
-                    pieces.get_valid_moves([i, j])
+                    game_engine.get_valid_moves([i, j])
 
-    def show_checkmate(self, is_white, pieces):
-        circle_radius = 15
-
+    def show_checkmate(self, is_white, game_engine):
         if is_white:
-            black_king = pieces.get_black_king()
+            black_king = game_engine.get_black_king()
             x = black_king.position[0]
             y = black_king.position[1]
 
@@ -186,7 +189,7 @@ class Board:
                                          self.rectangle_size,
                                          self.rectangle_size), 2)
         else:
-            white_king = pieces.get_white_king()
+            white_king = game_engine.get_white_king()
             x = white_king.position[0]
             y = white_king.position[1]
 

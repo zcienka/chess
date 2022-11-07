@@ -24,11 +24,11 @@ class Board:
                 if (i + j) % 2 == 0:
                     pygame.draw.rect(self.surface,
                                      self.white,
-                                     pygame.Rect(self.offset + self.rectangle_size*j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
+                                     pygame.Rect(self.offset + self.rectangle_size * j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
                 else:
                     pygame.draw.rect(self.surface,
                                      self.black,
-                                     pygame.Rect(self.offset + self.rectangle_size*j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
+                                     pygame.Rect(self.offset + self.rectangle_size * j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
 
     def show_pieces(self, pieces, initial_run=False):
         piece_pos = 0
@@ -158,11 +158,11 @@ class Board:
 
     def set_king_valid_moves(self, pieces):
         pieces.clear_king_moves()
-        white_king_pos = pieces.get_white_king_pos()
-        black_king_pos = pieces.get_black_king_pos()
+        white_king = pieces.get_white_king()
+        black_king = pieces.get_black_king()
 
-        w_moves = pieces.get_initial_king_moves(white_king_pos)
-        b_moves = pieces.get_initial_king_moves(black_king_pos)
+        w_moves = pieces.get_initial_king_moves(white_king.position)
+        b_moves = pieces.get_initial_king_moves(black_king.position)
 
         pieces.set_white_king_moves(w_moves)
         pieces.set_black_king_moves(b_moves)
@@ -172,4 +172,26 @@ class Board:
                 if position[j] != None:
                     pieces.get_valid_moves([i, j])
 
-        # print(position)
+    def show_checkmate(self, is_white, pieces):
+        circle_radius = 15
+
+        if is_white:
+            black_king = pieces.get_black_king()
+            x = black_king.position[0]
+            y = black_king.position[1]
+
+            pygame.draw.rect(self.surface,
+                             (255, 0, 0),
+                             pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
+                                         self.rectangle_size,
+                                         self.rectangle_size), 2)
+        else:
+            white_king = pieces.get_white_king()
+            x = white_king.position[0]
+            y = white_king.position[1]
+
+            pygame.draw.rect(self.surface,
+                             (255, 0, 0),
+                             pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
+                                         self.rectangle_size,
+                                         self.rectangle_size), 2)

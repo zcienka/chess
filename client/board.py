@@ -5,17 +5,34 @@ import io
 import cairosvg
 import math
 from position import Position
+from collections import defaultdict
+
 
 class Board:
-    def __init__(self, surface, WINDOW_SIZE, fen_sequence):
+    def __init__(self, surface, fen_sequence):
         self.width = 800
         self.height = 800
         self.surface = surface
         self.white = (182, 182, 182)
-        self.black = (92, 92, 94)
+        self.black = (92, 92, 92)
         self.rectangle_size = 100
         self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
+
+        self.piece_imgs = defaultdict(list, {
+            "R": self.scale_svg(WHITE_ROOK_SVG),
+            "N": self.scale_svg(WHITE_KNIGHT_SVG),
+            "B": self.scale_svg(WHITE_BISHOP_SVG),
+            "Q": self.scale_svg(WHITE_QUEEN_SVG),
+            "K": self.scale_svg(WHITE_KING_SVG),
+            "P": self.scale_svg(WHITE_PAWN_SVG),
+            "r": self.scale_svg(BLACK_ROOK_SVG),
+            "n": self.scale_svg(BLACK_KNIGHT_SVG),
+            "b": self.scale_svg(BLACK_BISHOP_SVG),
+            "q": self.scale_svg(BLACK_QUEEN_SVG),
+            "k": self.scale_svg(BLACK_KING_SVG),
+            "p": self.scale_svg(BLACK_PAWN_SVG)
+        })
 
     def draw(self):
         for i in range(BOARD_SIZE):
@@ -29,48 +46,30 @@ class Board:
                                      self.black,
                                      pygame.Rect(self.offset + self.rectangle_size * j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
 
-    def show_pieces(self, game_engine, initial_run=False):
+    def show_pieces(self, game_engine, grabbed_piece_pos=None, initial_run=False):
         piece_pos = 0
 
         for i, position in enumerate(self.fen_sequence):
             row = math.floor(piece_pos / BOARD_SIZE)
             col = piece_pos % BOARD_SIZE
-            pos = Position(row, col)
 
-            if position == "R":
-                img = self.scale_svg(WHITE_ROOK_SVG)
-            elif position == "N":
-                img = self.scale_svg(WHITE_KNIGHT_SVG)
-            elif position == "B":
-                img = self.scale_svg(WHITE_BISHOP_SVG)
-            elif position == "Q":
-                img = self.scale_svg(WHITE_QUEEN_SVG)
-            elif position == "K":
-                img = self.scale_svg(WHITE_KING_SVG)
+            if grabbed_piece_pos == None or Position(row, col) != grabbed_piece_pos:
+                pos = Position(row, col)
 
-                if initial_run:
-                    game_engine.set_white_king_pos(pos)
-            elif position == "P":
-                img = self.scale_svg(WHITE_PAWN_SVG)
-            elif position == "r":
-                img = self.scale_svg(BLACK_ROOK_SVG)
-            elif position == "n":
-                img = self.scale_svg(BLACK_KNIGHT_SVG)
-            elif position == "b":
-                img = self.scale_svg(BLACK_BISHOP_SVG)
-            elif position == "q":
-                img = self.scale_svg(BLACK_QUEEN_SVG)
-            elif position == "k":
-                img = self.scale_svg(BLACK_KING_SVG)
+                if position == "K":
+                    if initial_run:
+                        game_engine.set_white_king_pos(pos)
 
-                if initial_run:
-                    game_engine.set_black_king_pos(pos)
-            elif position == "p":
-                img = self.scale_svg(BLACK_PAWN_SVG)
+                if position == "k":
+                    if initial_run:
+                        game_engine.set_black_king_pos(pos)
 
-            if position != "/" and not position.isdigit():
-                self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
-                                                            self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
+                if position != "/" and not position.isdigit():
+                    img = self.piece_imgs[position]
+                    self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
+                                                                self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
+
+                
 
             if not position.isdigit():
                 if position != "/":
@@ -78,8 +77,8 @@ class Board:
             else:
                 piece_pos += int(position)
 
-        # if initial_run:
-        #     self.set_king_valid_moves(pieces)
+        if initial_run:
+            self.set_king_valid_moves(game_engine)
 
     def scale_svg(self, svg_file):
         DPI = 100
@@ -122,8 +121,6 @@ class Board:
         # self.board = board
         return board
 
-
-
     def convert_board_to_fen_sequence(self, game_engine):
         fen_sequence = []
         board = game_engine.get_board()
@@ -145,9 +142,6 @@ class Board:
             fen_sequence += "/"
 
         self.fen_sequence = "".join(fen_sequence)
-
-    # def get_board(self):
-    #     return self.board
 
     def show_valid_moves(self, valid_moves):
         circle_radius = 15
@@ -175,26 +169,29 @@ class Board:
         for i, position in enumerate(game_board):
             for j in range(len(position)):
                 if position[j] != None:
-                    game_engine.get_valid_moves([i, j])
+                    game_engine.get_valid_moves(Position(i, j))
 
     def show_checkmate(self, is_white, game_engine):
         if is_white:
             black_king = game_engine.get_black_king()
-            x = black_king.position[0]
-            y = black_king.position[1]
+            x = black_king.position.x
+            y = black_king.position.y
 
             pygame.draw.rect(self.surface,
-                             (255, 0, 0),
+                             (186, 69, 69),
                              pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
                                          self.rectangle_size,
-                                         self.rectangle_size), 2)
+                                         self.rectangle_size))
         else:
             white_king = game_engine.get_white_king()
-            x = white_king.position[0]
-            y = white_king.position[1]
+            x = white_king.position.x
+            y = white_king.position.y
 
             pygame.draw.rect(self.surface,
-                             (255, 0, 0),
+                             (186, 69, 69),
                              pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
                                          self.rectangle_size,
-                                         self.rectangle_size), 2)
+                                         self.rectangle_size))
+
+    def get_piece_img(self, piece):
+        return self.piece_imgs[piece]

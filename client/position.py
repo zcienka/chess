@@ -4,7 +4,9 @@ class Position:
         self.y = y
     
     def __eq__(self, other):
-        return self.x == other.x
+        if other == None:
+            return False
+        return self.x == other.x and self.y == other.y
 
     # def __contains__(self, other):
-    #     print(other.x)
+    #     print(other.x)    

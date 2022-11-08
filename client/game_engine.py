@@ -8,13 +8,13 @@ from position import Position
 class GameEngine:
     def __init__(self, game_board):
         self.directions = defaultdict(list, {
-            "rook": [[-1, 0], [1, 0], [0, 1], [0, -1]],
-            "bishop": [[-1, -1], [-1, 1], [1, 1], [1, -1]],
-            "queen": [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, 0], [1, 0], [0, 1], [0, -1]],
-            "knight": [[-2, 1], [-1, 2], [1, 2], [2, 1], [-1, -2], [-2, -1], [1, -2], [2, -1]],
-            "king": [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, -1], [-1, 1], [1, 1], [1, -1]],
+            "R": [[-1, 0], [1, 0], [0, 1], [0, -1]],
+            "B": [[-1, -1], [-1, 1], [1, 1], [1, -1]],
+            "Q": [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, 0], [1, 0], [0, 1], [0, -1]],
+            "N": [[-2, 1], [-1, 2], [1, 2], [2, 1], [-1, -2], [-2, -1], [1, -2], [2, -1]],
+            "K": [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, -1], [-1, 1], [1, 1], [1, -1]],
             "pawn_first_move": [[1, 1], [1, 2]],
-            "pawn": [[1, 1]]
+            "P": [[1, 1]]
         })
 
         self.board = game_board
@@ -28,25 +28,16 @@ class GameEngine:
         clicked_piece = self.board[square_x][square_y]
         is_white = self.board[square_x][square_y].isupper()
         valid_moves = []
-        piece = None
 
-        if clicked_piece == "R" or clicked_piece == "r":
-            piece = "rook"
-        elif clicked_piece == "B" or clicked_piece == "b":
-            piece = "bishop"
-        elif clicked_piece == "Q" or clicked_piece == "q":
-            piece = "queen"
-
-        if piece == "rook" or piece == "bishop" or piece == "queen":
+        if self.is_queen_rook_bishop(clicked_piece):
             valid_moves = self.get_rook_queen_bishop_valid_moves(
-                piece, square, self.board)
+                clicked_piece, square, self.board)
             valid_moves = self.get_legal_moves(
                 valid_moves, clicked_piece, square)
         else:
             if clicked_piece == "n" or clicked_piece == "N":
-                piece = "knight"
                 valid_moves = self.get_knight_valid_moves(
-                    piece, square)
+                    clicked_piece, square)
                 valid_moves = self.get_legal_moves(
                     valid_moves, clicked_piece, square)
             elif clicked_piece == "k" or clicked_piece == "K":
@@ -86,7 +77,7 @@ class GameEngine:
                 prev_pos = self.black_king.position
                 board_copy[prev_pos.x][prev_pos.y] = None
 
-                if self.is_own_king_mate(black_king.piece, board_copy, black_king):
+                if self.is_own_king_mate(board_copy, black_king):
                     self.black_king.valid_moves.remove(move)
         else:
             for move in self.white_king.valid_moves:
@@ -101,16 +92,16 @@ class GameEngine:
                 prev_pos = self.white_king.position
                 board_copy[prev_pos.x][prev_pos.y] = None
 
-                if self.is_own_king_mate(white_king.piece, board_copy, white_king):
+                if self.is_own_king_mate(board_copy, white_king):
                     self.white_king.valid_moves.remove(move)
 
     def set_white_king_pos(self, pos):
         self.white_king.position = pos
-        self.white_king.moves = self.get_initial_king_moves(pos)
+        self.white_king.valid_moves = self.get_initial_king_moves(pos)
 
     def set_black_king_pos(self, pos):
         self.black_king.position = pos
-        self.black_king.moves = self.get_initial_king_moves(pos)
+        self.black_king.valid_moves = self.get_initial_king_moves(pos)
 
     def get_initial_king_moves(self, pos):
         square_x = pos.x
@@ -119,9 +110,8 @@ class GameEngine:
         clicked_piece = self.board[square_x][square_y]
         is_white = clicked_piece.isupper()
 
-        piece = "king"
         squares = [Position(square_x + direction[0], square_y + direction[1])
-                   for direction in self.directions[piece]]
+                   for direction in self.directions["K"]]
         for square in squares:
             x = square.x
             y = square.y
@@ -161,31 +151,21 @@ class GameEngine:
     def set_black_king_moves(self, moves):
         self.black_king.valid_moves = moves
 
-    def is_own_king_mate(self, curr_piece, board, king):
+    def is_own_king_mate(self,  board, king):
         valid_moves = []
-        piece_name = None
 
         for x, row in enumerate(board):
             for y, piece in enumerate(row):
                 if piece != None and piece != "P" and piece != "p" and piece != "k" and piece != "K":
-                    # if piece != None:
-                    is_white = piece.isupper()
-                    if piece == "R" or piece == "r":
-                        piece_name = "rook"
-                    elif piece == "B" or piece == "b":
-                        piece_name = "bishop"
-                    elif piece == "Q" or piece == "q":
-                        piece_name = "queen"
-
                     pos = Position(x, y)
 
-                    if piece_name == "rook" or piece_name == "bishop" or piece_name == "queen":
-                        valid_moves = self.get_rook_queen_bishop_valid_moves(piece_name, pos, board)
+                    if self.is_queen_rook_bishop(piece):
+                        valid_moves = self.get_rook_queen_bishop_valid_moves(
+                            piece, pos, board)
 
                     if piece == "n" or piece == "N":
-                        piece_name = "knight"
                         valid_moves = self.get_knight_valid_moves(
-                            piece_name, pos)
+                            piece, pos)
 
                     if king.position in valid_moves and king.piece.isupper() != piece.isupper():
                         return True
@@ -195,7 +175,7 @@ class GameEngine:
     def get_rook_queen_bishop_valid_moves(self, piece, pos, board):
         valid_moves = []
         squares = [Position(pos.x + direction[0], pos.y + direction[1])
-                   for direction in self.directions[piece]]
+                   for direction in self.directions[copy.deepcopy(piece).upper()]]
 
         for i, square in enumerate(squares):
             square_copy = copy.deepcopy(square)
@@ -203,17 +183,18 @@ class GameEngine:
             while True:
                 x = square_copy.x
                 y = square_copy.y
-                piece_directions = self.directions[piece]
+                piece_directions = self.directions[copy.deepcopy(
+                    piece).upper()]
 
                 if 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE:
                     if board[x][y] == None:
                         valid_moves.append(square_copy)
                         square_copy = Position(piece_directions[i][0] + x,
-                                       piece_directions[i][1] + y)
+                                               piece_directions[i][1] + y)
                     else:
                         valid_moves.append(square_copy)
                         square_copy = Position(piece_directions[i][0] + x,
-                                       piece_directions[i][1] + y)
+                                               piece_directions[i][1] + y)
                         break
                 else:
                     break
@@ -222,7 +203,7 @@ class GameEngine:
     def get_knight_valid_moves(self, piece, pos):
         valid_moves = []
         squares = [Position(pos.x + direction[0], pos.y + direction[1])
-                   for direction in self.directions[piece]]
+                   for direction in self.directions[copy.deepcopy(piece).upper()]]
         for square in squares:
             x = square.x
             y = square.y
@@ -250,16 +231,15 @@ class GameEngine:
             board_copy[prev_x][prev_y] = None
 
             if piece.isupper():
-                if self.is_own_king_mate(piece, board_copy, self.white_king):
+                if self.is_own_king_mate(board_copy, self.white_king):
                     valid_moves.remove(move)
             else:
-                if self.is_own_king_mate(piece, board_copy, self.black_king):
+                if self.is_own_king_mate(board_copy, self.black_king):
                     valid_moves.remove(move)
 
         return valid_moves
 
     def is_opponent_being_checked(self, valid_moves, piece):
-        # for move in valid_moves:
         is_piece_white = piece.isupper()
 
         if not is_piece_white:
@@ -288,29 +268,20 @@ class GameEngine:
         for x, row in enumerate(self.board):
             for y, piece in enumerate(row):
                 valid_moves = []
-                piece_name = None
                 pos = Position(x, y)
 
                 if piece != "p" and piece != "P":
                     if piece != None:
                         if piece.isupper() == white:
-                            if piece == "R" or piece == "r":
-                                piece_name = "rook"
-                            elif piece == "B" or piece == "b":
-                                piece_name = "bishop"
-                            elif piece == "Q" or piece == "q":
-                                piece_name = "queen"
-
-                            if piece_name == "rook" or piece_name == "bishop" or piece_name == "queen":
+                            if self.is_queen_rook_bishop(piece):
                                 valid_moves = self.get_rook_queen_bishop_valid_moves(
-                                    piece_name, pos, self.board)
+                                    piece, pos, self.board)
                                 valid_moves = self.get_legal_moves(
                                     valid_moves, piece, pos)
                             else:
                                 if piece == "n" or piece == "N":
-                                    piece_name = "knight"
                                     valid_moves = self.get_knight_valid_moves(
-                                        piece_name, pos)
+                                        piece, pos)
                                     valid_moves = self.get_legal_moves(
                                         valid_moves, piece, pos)
 
@@ -329,3 +300,11 @@ class GameEngine:
 
     def update(self, pos, piece):
         self.board[pos.x][pos.y] = piece
+
+    def is_queen_rook_bishop(self, piece):
+        if piece == "R" or piece == "r" \
+                or piece == "B" or piece == "b" \
+                or piece == "Q" or piece == "q":
+            return True
+
+        return False

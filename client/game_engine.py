@@ -3,18 +3,19 @@ from king import King
 from constants import *
 from collections import defaultdict
 from position import Position
+from pawns import Pawns
+import globals
 
 
 class GameEngine:
     def __init__(self, game_board):
-        self.directions = defaultdict(list, {
+        self.possible_moves = defaultdict(list, {
             "R": [[-1, 0], [1, 0], [0, 1], [0, -1]],
             "B": [[-1, -1], [-1, 1], [1, 1], [1, -1]],
             "Q": [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, 0], [1, 0], [0, 1], [0, -1]],
             "N": [[-2, 1], [-1, 2], [1, 2], [2, 1], [-1, -2], [-2, -1], [1, -2], [2, -1]],
             "K": [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, -1], [-1, 1], [1, 1], [1, -1]],
-            "pawn_first_move": [[1, 1], [1, 2]],
-            "P": [[1, 1]]
+
         })
 
         self.board = game_board
@@ -22,25 +23,32 @@ class GameEngine:
         self.white_king = King("K")
         self.black_king = King("k")
 
+        self.initial_pawn_positions = []
+
+        self.white_pawns = Pawns(is_white=True)
+        self.black_pawns = Pawns(is_white=False)
+
     def get_valid_moves(self, square):
         square_x = square.x
         square_y = square.y
-        clicked_piece = self.board[square_x][square_y]
+        piece = self.board[square_x][square_y]
         is_white = self.board[square_x][square_y].isupper()
         valid_moves = []
 
-        if self.is_queen_rook_bishop(clicked_piece):
+        if self.is_queen_rook_bishop(piece):
             valid_moves = self.get_rook_queen_bishop_valid_moves(
-                clicked_piece, square, self.board)
+                piece, square, self.board)
             valid_moves = self.get_legal_moves(
-                valid_moves, clicked_piece, square)
+                valid_moves, piece, square)
         else:
-            if clicked_piece == "n" or clicked_piece == "N":
+            if piece == "n" or piece == "N":
                 valid_moves = self.get_knight_valid_moves(
-                    clicked_piece, square)
+                    piece, square)
                 valid_moves = self.get_legal_moves(
-                    valid_moves, clicked_piece, square)
-            elif clicked_piece == "k" or clicked_piece == "K":
+                    valid_moves, piece, square)
+            elif piece == "p" or piece == "P":
+                valid_moves = self.get_pawn_valid_moves(square)
+            elif piece == "k" or piece == "K":
                 if not is_white:
                     self.black_king.position = square
                     valid_moves = self.black_king.valid_moves
@@ -56,7 +64,7 @@ class GameEngine:
 
         self.check_collision_with_king_moves(is_white)
 
-        if self.is_opponent_being_checked(valid_moves, clicked_piece):
+        if self.is_opponent_being_checked(valid_moves, piece):
             if is_white:
                 self.black_king.check = True
             else:
@@ -77,7 +85,7 @@ class GameEngine:
                 prev_pos = self.black_king.position
                 board_copy[prev_pos.x][prev_pos.y] = None
 
-                if self.is_own_king_mate(board_copy, black_king):
+                if self.is_own_king_in_check(board_copy, black_king):
                     self.black_king.valid_moves.remove(move)
         else:
             for move in self.white_king.valid_moves:
@@ -92,7 +100,7 @@ class GameEngine:
                 prev_pos = self.white_king.position
                 board_copy[prev_pos.x][prev_pos.y] = None
 
-                if self.is_own_king_mate(board_copy, white_king):
+                if self.is_own_king_in_check(board_copy, white_king):
                     self.white_king.valid_moves.remove(move)
 
     def set_white_king_pos(self, pos):
@@ -107,11 +115,11 @@ class GameEngine:
         square_x = pos.x
         square_y = pos.y
         valid_moves = []
-        clicked_piece = self.board[square_x][square_y]
-        is_white = clicked_piece.isupper()
+        piece = self.board[square_x][square_y]
+        is_white = piece.isupper()
 
         squares = [Position(square_x + direction[0], square_y + direction[1])
-                   for direction in self.directions["K"]]
+                   for direction in self.possible_moves["K"]]
         for square in squares:
             x = square.x
             y = square.y
@@ -151,7 +159,7 @@ class GameEngine:
     def set_black_king_moves(self, moves):
         self.black_king.valid_moves = moves
 
-    def is_own_king_mate(self,  board, king):
+    def is_own_king_in_check(self,  board, king):
         valid_moves = []
 
         for x, row in enumerate(board):
@@ -175,7 +183,7 @@ class GameEngine:
     def get_rook_queen_bishop_valid_moves(self, piece, pos, board):
         valid_moves = []
         squares = [Position(pos.x + direction[0], pos.y + direction[1])
-                   for direction in self.directions[copy.deepcopy(piece).upper()]]
+                   for direction in self.possible_moves[piece.upper()]]
 
         for i, square in enumerate(squares):
             square_copy = copy.deepcopy(square)
@@ -183,8 +191,7 @@ class GameEngine:
             while True:
                 x = square_copy.x
                 y = square_copy.y
-                piece_directions = self.directions[copy.deepcopy(
-                    piece).upper()]
+                piece_directions = self.possible_moves[piece.upper()]
 
                 if 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE:
                     if board[x][y] == None:
@@ -203,7 +210,7 @@ class GameEngine:
     def get_knight_valid_moves(self, piece, pos):
         valid_moves = []
         squares = [Position(pos.x + direction[0], pos.y + direction[1])
-                   for direction in self.directions[copy.deepcopy(piece).upper()]]
+                   for direction in self.possible_moves[piece.upper()]]
         for square in squares:
             x = square.x
             y = square.y
@@ -231,10 +238,10 @@ class GameEngine:
             board_copy[prev_x][prev_y] = None
 
             if piece.isupper():
-                if self.is_own_king_mate(board_copy, self.white_king):
+                if self.is_own_king_in_check(board_copy, self.white_king):
                     valid_moves.remove(move)
             else:
-                if self.is_own_king_mate(board_copy, self.black_king):
+                if self.is_own_king_in_check(board_copy, self.black_king):
                     valid_moves.remove(move)
 
         return valid_moves
@@ -308,3 +315,53 @@ class GameEngine:
             return True
 
         return False
+
+    def get_pawn_valid_moves(self, pos):
+        if globals.IS_WHITES_TURN:
+            opponent_double_push = self.black_pawns.get_double_push()
+            valid_moves = self.white_pawns.get_moves(
+                pos, self.board, opponent_double_push)
+        else:
+            opponent_double_push = self.white_pawns.get_double_push()
+            valid_moves = self.black_pawns.get_moves(
+                pos, self.board, opponent_double_push)
+
+        return valid_moves
+
+    def clear_opponent_double_push(self):
+        if globals.IS_WHITES_TURN:
+            self.black_pawns.clear_double_push()
+        else:
+            self.white_pawns.clear_double_push()
+
+    def is_pawn_double_move(self, prev_move, curr_move):
+        if globals.IS_WHITES_TURN:
+            return self.white_pawns.is_double_move(prev_move, curr_move)
+        else:
+            return self.black_pawns.is_double_move(prev_move, curr_move)
+
+    def set_pawn_double_push(self, pos):
+        if globals.IS_WHITES_TURN:
+            self.white_pawns.set_double_move(pos)
+        else:
+            self.black_pawns.set_double_move(pos)
+
+    def is_promotion(self, pos):
+        if globals.IS_WHITES_TURN:
+            return self.white_pawns.is_promotion(pos)
+        else:
+            return self.black_pawns.is_promotion(pos)
+
+
+    def is_en_passant_move(self, pos, opponent_double_push):
+        if globals.IS_WHITES_TURN:
+            return self.white_pawns.is_en_passant_move(pos, opponent_double_push)
+        else:
+            return self.black_pawns.is_en_passant_move(pos, opponent_double_push)
+
+
+    def get_opponent_pawn_position(self):
+        if globals.IS_WHITES_TURN:
+            return self.black_pawns.get_double_push()
+        else:
+            return self.white_pawns.get_double_push()

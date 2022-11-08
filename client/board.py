@@ -1,6 +1,5 @@
 import pygame
 from constants import *
-import svgutils
 import io
 import cairosvg
 import math
@@ -18,6 +17,7 @@ class Board:
         self.rectangle_size = 100
         self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
+        self.red = (186, 69, 69)
 
         self.piece_imgs = defaultdict(list, {
             "R": self.scale_svg(WHITE_ROOK_SVG),
@@ -178,7 +178,7 @@ class Board:
             y = black_king.position.y
 
             pygame.draw.rect(self.surface,
-                             (186, 69, 69),
+                             self.red,
                              pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
                                          self.rectangle_size,
                                          self.rectangle_size))
@@ -188,7 +188,7 @@ class Board:
             y = white_king.position.y
 
             pygame.draw.rect(self.surface,
-                             (186, 69, 69),
+                             self.red,
                              pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
                                          self.rectangle_size,
                                          self.rectangle_size))

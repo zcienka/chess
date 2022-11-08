@@ -2,8 +2,8 @@ import pygame
 from board import Board
 from game_engine import GameEngine
 from constants import *
-from position import Position
 from copy import deepcopy
+import globals
 
 
 def main():
@@ -12,13 +12,14 @@ def main():
     pygame.display.set_caption("Chess")
     surface = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
     FPS = 60
-    fen_sequence = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/"  # mating test
+
+    # fen_sequence = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/"  # mating test
     # fen_sequence = ""
     # fen_sequence = "4k3/8/4q3/8/8/8/6K1/4R3" # pin test #1
     # fen_sequence = "8/8/1Rr1k3/8/4q3/4R3/8/4K3" # pin test #2
 
     # fen_sequence = "r1b1k2r/pp1n1ppp/5n2/1Bb1q3/8/4N3/PPP2PPP/R1BQK2R"
-    # fen_sequence = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+    fen_sequence = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 
     board = Board(surface, fen_sequence)
 
@@ -66,18 +67,19 @@ def main():
                 mouse_x, mouse_y = mouse
                 pos, piece = board.get_row_col_and_piece(
                     mouse_x, mouse_y, game_engine)
+                print(pos.x, pos.y)
 
-                if drag == False:
-                    drag_pos = pos
-                    piece_img = board.get_piece_img(piece)
+                if globals.IS_WHITES_TURN == piece.isupper():
+                    if drag == False:
+                        drag_pos = pos
+                        piece_img = board.get_piece_img(piece)
 
-
-                if piece != None:
-                    valid_moves = game_engine.get_valid_moves(pos)
-                    board.show_valid_moves(valid_moves)
-                    drop_pos = True
-                    selected_piece = pos, piece
-                    drag = True
+                    if piece != None:
+                        valid_moves = game_engine.get_valid_moves(pos)
+                        board.show_valid_moves(valid_moves)
+                        drop_pos = True
+                        selected_piece = pos, piece
+                        drag = True
 
             elif event.type == pygame.MOUSEBUTTONUP:
                 piece_img = None
@@ -96,6 +98,24 @@ def main():
                             game_engine.update(old_pos, None)
                             game_engine.update(new_pos, piece)
 
+                            if piece == "p" or piece == "P":
+                                if game_engine.is_pawn_double_move(old_pos, new_pos):
+                                    print("pawn double move")
+                                    game_engine.set_pawn_double_push(new_pos)
+                                else:
+                                    print("not double move")
+                                
+                                opponent_pawn_pos = game_engine.get_opponent_pawn_position()
+
+                                if game_engine.is_en_passant_move(new_pos, opponent_pawn_pos):
+                                    game_engine.update(opponent_pawn_pos, None)
+
+                                if game_engine.is_promotion(new_pos):
+                                    if globals.IS_WHITES_TURN:
+                                        game_engine.update(new_pos, "Q")
+                                    else:
+                                        game_engine.update(new_pos, "q")
+
                             board.convert_board_to_fen_sequence(game_engine)
 
                             if piece == "k" or piece == "K":
@@ -105,6 +125,10 @@ def main():
                                     game_engine.set_white_king_pos(new_pos)
 
                             board.set_king_valid_moves(game_engine)
+
+                            game_engine.clear_opponent_double_push()
+
+                            globals.IS_WHITES_TURN = not globals.IS_WHITES_TURN
 
                             if game_engine.is_checkmate():
                                 print("checkmate")

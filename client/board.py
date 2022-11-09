@@ -40,16 +40,22 @@ class Board:
                 if (i + j) % 2 == 0:
                     pygame.draw.rect(self.surface,
                                      self.white,
-                                     pygame.Rect(self.offset + self.rectangle_size * j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
+                                     pygame.Rect(self.offset + self.rectangle_size * j,
+                                                 self.offset + self.rectangle_size * i,
+                                                 self.rectangle_size,
+                                                 self.rectangle_size))
                 else:
                     pygame.draw.rect(self.surface,
                                      self.black,
-                                     pygame.Rect(self.offset + self.rectangle_size * j, self.offset + self.rectangle_size*i, self.rectangle_size, self.rectangle_size))
+                                     pygame.Rect(self.offset + self.rectangle_size * j,
+                                                 self.offset + self.rectangle_size * i,
+                                                 self.rectangle_size,
+                                                 self.rectangle_size))
 
     def show_pieces(self, game_engine, grabbed_piece_pos=None, initial_run=False):
         piece_pos = 0
 
-        for i, position in enumerate(self.fen_sequence):
+        for position in self.fen_sequence:
             row = math.floor(piece_pos / BOARD_SIZE)
             col = piece_pos % BOARD_SIZE
 
@@ -68,8 +74,6 @@ class Board:
                     img = self.piece_imgs[position]
                     self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
                                                                 self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
-
-                
 
             if not position.isdigit():
                 if position != "/":
@@ -118,7 +122,6 @@ class Board:
                 else:
                     row.extend([None for _ in range(int(piece))])
             board.append(row)
-        # self.board = board
         return board
 
     def convert_board_to_fen_sequence(self, game_engine):
@@ -154,15 +157,7 @@ class Board:
                                circle_radius)
 
     def set_king_valid_moves(self, game_engine):
-        game_engine.clear_king_moves()
-        white_king = game_engine.get_white_king()
-        black_king = game_engine.get_black_king()
-
-        w_moves = game_engine.get_initial_king_moves(white_king.position)
-        b_moves = game_engine.get_initial_king_moves(black_king.position)
-
-        game_engine.set_white_king_moves(w_moves)
-        game_engine.set_black_king_moves(b_moves)
+        game_engine.reset_kings()
 
         game_board = game_engine.get_board()
 
@@ -171,27 +166,21 @@ class Board:
                 if position[j] != None:
                     game_engine.get_valid_moves(Position(i, j))
 
-    def show_checkmate(self, is_white, game_engine):
+    def show_check(self, game_engine, is_white):
         if is_white:
-            black_king = game_engine.get_black_king()
-            x = black_king.position.x
-            y = black_king.position.y
-
-            pygame.draw.rect(self.surface,
-                             self.red,
-                             pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
-                                         self.rectangle_size,
-                                         self.rectangle_size))
+            king = game_engine.get_white_king()
         else:
-            white_king = game_engine.get_white_king()
-            x = white_king.position.x
-            y = white_king.position.y
+            king = game_engine.get_black_king()
 
-            pygame.draw.rect(self.surface,
-                             self.red,
-                             pygame.Rect(self.offset + self.rectangle_size * y, self.offset + self.rectangle_size * x,
-                                         self.rectangle_size,
-                                         self.rectangle_size))
+        x = king.position.x
+        y = king.position.y
+
+        pygame.draw.rect(self.surface,
+                         self.red,
+                         pygame.Rect(self.offset + self.rectangle_size * y,
+                                     self.offset + self.rectangle_size * x,
+                                     self.rectangle_size,
+                                     self.rectangle_size))
 
     def get_piece_img(self, piece):
         return self.piece_imgs[piece]

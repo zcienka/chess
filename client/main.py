@@ -2,8 +2,8 @@ import pygame
 from board import Board
 from game_engine import GameEngine
 from constants import *
-from copy import deepcopy
 import globals
+from position import Position
 
 
 def main():
@@ -20,6 +20,8 @@ def main():
 
     # fen_sequence = "r1b1k2r/pp1n1ppp/5n2/1Bb1q3/8/4N3/PPP2PPP/R1BQK2R"
     fen_sequence = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+
+    # fen_sequence = "k7/7R/8/8/8/8/8/2Q4K" # stalemate test
 
     board = Board(surface, fen_sequence)
 
@@ -46,6 +48,8 @@ def main():
     drag_pos = None
     checkmate = False
     valid_moves = []
+    white_check = False
+    black_check = False
 
     while running:
         for event in pygame.event.get():
@@ -67,14 +71,13 @@ def main():
                 mouse_x, mouse_y = mouse
                 pos, piece = board.get_row_col_and_piece(
                     mouse_x, mouse_y, game_engine)
-                print(pos.x, pos.y)
 
-                if globals.IS_WHITES_TURN == piece.isupper():
-                    if drag == False:
-                        drag_pos = pos
-                        piece_img = board.get_piece_img(piece)
+                if piece != None:
+                    if globals.IS_WHITES_TURN == piece.isupper():
+                        if drag == False:
+                            drag_pos = pos
+                            piece_img = board.get_piece_img(piece)
 
-                    if piece != None:
                         valid_moves = game_engine.get_valid_moves(pos)
                         board.show_valid_moves(valid_moves)
                         drop_pos = True
@@ -95,16 +98,22 @@ def main():
                         if drop_piece == None or isinstance(drop_piece, str) and \
                                 not (piece.isupper() == drop_piece.isupper()):
                             valid_moves = []
+                            white_check = False
+                            black_check = False
+
+                            if game_engine.is_king(piece):
+                                game_engine.check_and_perform_castling(new_pos)
+
                             game_engine.update(old_pos, None)
                             game_engine.update(new_pos, piece)
 
-                            if piece == "p" or piece == "P":
+                            if game_engine.is_pawn(piece):
                                 if game_engine.is_pawn_double_move(old_pos, new_pos):
                                     print("pawn double move")
                                     game_engine.set_pawn_double_push(new_pos)
                                 else:
                                     print("not double move")
-                                
+
                                 opponent_pawn_pos = game_engine.get_opponent_pawn_position()
 
                                 if game_engine.is_en_passant_move(new_pos, opponent_pawn_pos):
@@ -118,11 +127,15 @@ def main():
 
                             board.convert_board_to_fen_sequence(game_engine)
 
-                            if piece == "k" or piece == "K":
-                                if piece == "k":
-                                    game_engine.set_black_king_pos(new_pos)
-                                else:
-                                    game_engine.set_white_king_pos(new_pos)
+                            if game_engine.is_rook(piece):
+                                game_engine.set_rook_has_moved(old_pos)
+
+                            if piece == "k":
+                                game_engine.set_black_king_pos(new_pos)
+                                game_engine.set_black_king_has_moved()
+                            elif piece == "K":
+                                game_engine.set_white_king_pos(new_pos)
+                                game_engine.set_white_king_has_moved()
 
                             board.set_king_valid_moves(game_engine)
 
@@ -132,13 +145,21 @@ def main():
 
                             if game_engine.is_checkmate():
                                 print("checkmate")
-                                white = piece.isupper()
-                                checkmate = True
+
+                            if game_engine.is_stalemate():
+                                print("stalemate")
+
+                            if game_engine.is_white_in_check():
+                                white_check = True
+                            if game_engine.is_black_in_check():
+                                black_check = True  
 
         board.draw()
 
-        if checkmate:
-            board.show_checkmate(white, game_engine)
+        if white_check:
+            board.show_check(game_engine, is_white=True)
+        if black_check:
+            board.show_check(game_engine, is_white=False)
 
         board.show_pieces(game_engine, drag_pos)
 

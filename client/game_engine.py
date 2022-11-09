@@ -15,7 +15,6 @@ class GameEngine:
             "Q": [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, 0], [1, 0], [0, 1], [0, -1]],
             "N": [[-2, 1], [-1, 2], [1, 2], [2, 1], [-1, -2], [-2, -1], [1, -2], [2, -1]],
             "K": [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, -1], [-1, 1], [1, 1], [1, -1]],
-
         })
 
         self.board = game_board
@@ -46,23 +45,43 @@ class GameEngine:
                     piece, square)
                 valid_moves = self.get_legal_moves(
                     valid_moves, piece, square)
-            elif piece == "p" or piece == "P":
+            elif self.is_pawn(piece):
                 valid_moves = self.get_pawn_valid_moves(square)
+                valid_moves = self.get_legal_moves(
+                    valid_moves, piece, square)
             elif piece == "k" or piece == "K":
                 if not is_white:
                     self.black_king.position = square
                     valid_moves = self.black_king.valid_moves
 
-                    if valid_moves != []:
-                        self.black_king.check = False
+                    if self.black_king.can_short_castle(self.board):
+                        valid_moves.append(
+                            self.black_king.get_short_castle_pos())
+
+                    if self.black_king.can_long_castle(self.board):
+                        valid_moves.append(
+                            self.black_king.get_long_castle_pos())
+
+                    # if valid_moves != []:
+                    #     self.black_king.check = False
                 else:
                     self.white_king.position = square
                     valid_moves = self.white_king.valid_moves
 
-                    if valid_moves != []:
-                        self.white_king.check = False
+                    if self.white_king.can_short_castle(self.board):
+                        valid_moves.append(
+                            self.white_king.get_short_castle_pos())
+
+                    if self.white_king.can_long_castle(self.board):
+                        valid_moves.append(
+                            self.white_king.get_long_castle_pos())
+
+                    # if valid_moves != []:
+                    #     self.white_king.check = False
 
         self.check_collision_with_king_moves(is_white)
+
+        self.check_castling_collision(is_white, valid_moves)
 
         if self.is_opponent_being_checked(valid_moves, piece):
             if is_white:
@@ -103,14 +122,6 @@ class GameEngine:
                 if self.is_own_king_in_check(board_copy, white_king):
                     self.white_king.valid_moves.remove(move)
 
-    def set_white_king_pos(self, pos):
-        self.white_king.position = pos
-        self.white_king.valid_moves = self.get_initial_king_moves(pos)
-
-    def set_black_king_pos(self, pos):
-        self.black_king.position = pos
-        self.black_king.valid_moves = self.get_initial_king_moves(pos)
-
     def get_initial_king_moves(self, pos):
         square_x = pos.x
         square_y = pos.y
@@ -144,8 +155,16 @@ class GameEngine:
             return self.white_king.valid_moves
 
     def clear_king_moves(self):
-        self.white_king.valid_moves = []
-        self.black_king.valid_moves = []
+        self.white_king.valid_moves.clear()
+        self.black_king.valid_moves.clear()
+        self.white_king.check = False
+        self.black_king.check = False
+
+        self.black_king.set_is_short_castle_possible(True)
+        self.black_king.set_is_long_castle_possible(True)
+
+        self.white_king.set_is_short_castle_possible(True)
+        self.white_king.set_is_long_castle_possible(True)
 
     def get_white_king(self):
         return self.white_king
@@ -159,21 +178,22 @@ class GameEngine:
     def set_black_king_moves(self, moves):
         self.black_king.valid_moves = moves
 
-    def is_own_king_in_check(self,  board, king):
+    def is_own_king_in_check(self, board, king):
         valid_moves = []
 
         for x, row in enumerate(board):
             for y, piece in enumerate(row):
-                if piece != None and piece != "P" and piece != "p" and piece != "k" and piece != "K":
+                if piece != None and piece != "k" and piece != "K":
                     pos = Position(x, y)
 
                     if self.is_queen_rook_bishop(piece):
                         valid_moves = self.get_rook_queen_bishop_valid_moves(
                             piece, pos, board)
-
-                    if piece == "n" or piece == "N":
+                    elif piece == "n" or piece == "N":
                         valid_moves = self.get_knight_valid_moves(
                             piece, pos)
+                    elif self.is_pawn(piece):
+                        valid_moves = self.get_pawn_valid_moves(pos)
 
                     if king.position in valid_moves and king.piece.isupper() != piece.isupper():
                         return True
@@ -258,16 +278,11 @@ class GameEngine:
         return False
 
     def is_checkmate(self):
-        if self.white_king.check and self.white_king.valid_moves == []:
-            white = True
+        if self.white_king.check and not self.white_king.valid_moves == []:
+            return not self.are_valid_moves_left(white=True)
 
-            if not self.are_valid_moves_left(white):
-                return True
         if self.black_king.check and self.black_king.valid_moves == []:
-            white = False
-
-            if not self.are_valid_moves_left(white):
-                return True
+            return not self.are_valid_moves_left(white=False)
 
         return False
 
@@ -277,29 +292,32 @@ class GameEngine:
                 valid_moves = []
                 pos = Position(x, y)
 
-                if piece != "p" and piece != "P":
-                    if piece != None:
-                        if piece.isupper() == white:
-                            if self.is_queen_rook_bishop(piece):
-                                valid_moves = self.get_rook_queen_bishop_valid_moves(
-                                    piece, pos, self.board)
+                if piece != None:
+                    if piece.isupper() == white:
+                        if self.is_queen_rook_bishop(piece):
+                            valid_moves = self.get_rook_queen_bishop_valid_moves(
+                                piece, pos, self.board)
+                            valid_moves = self.get_legal_moves(
+                                valid_moves, piece, pos)
+                        else:
+                            if piece == "n" or piece == "N":
+                                valid_moves = self.get_knight_valid_moves(
+                                    piece, pos)
                                 valid_moves = self.get_legal_moves(
                                     valid_moves, piece, pos)
+                            elif self.is_pawn(piece):
+                                valid_moves = self.get_pawn_valid_moves(pos)
+                                valid_moves = self.get_legal_moves(
+                                    valid_moves, piece, pos)
+
+                        if self.is_king(piece):
+                            if white:
+                                valid_moves = self.white_king.valid_moves
                             else:
-                                if piece == "n" or piece == "N":
-                                    valid_moves = self.get_knight_valid_moves(
-                                        piece, pos)
-                                    valid_moves = self.get_legal_moves(
-                                        valid_moves, piece, pos)
+                                valid_moves = self.black_king.valid_moves
 
-                            if piece == "K" or piece == "k":
-                                if white:
-                                    valid_moves = self.white_king.valid_moves
-                                else:
-                                    valid_moves = self.black_king.valid_moves
-
-                            if len(valid_moves) != 0:
-                                return True
+                        if len(valid_moves) != 0:
+                            return True
         return False
 
     def get_board(self):
@@ -317,14 +335,17 @@ class GameEngine:
         return False
 
     def get_pawn_valid_moves(self, pos):
-        if globals.IS_WHITES_TURN:
-            opponent_double_push = self.black_pawns.get_double_push()
-            valid_moves = self.white_pawns.get_moves(
-                pos, self.board, opponent_double_push)
-        else:
-            opponent_double_push = self.white_pawns.get_double_push()
-            valid_moves = self.black_pawns.get_moves(
-                pos, self.board, opponent_double_push)
+        valid_moves = []
+        
+        if self.board[pos.x][pos.y] != None:
+            if self.board[pos.x][pos.y].isupper():
+                opponent_double_push = self.black_pawns.get_double_push()
+                valid_moves = self.white_pawns.get_moves(
+                    pos, self.board, opponent_double_push)
+            else:
+                opponent_double_push = self.white_pawns.get_double_push()
+                valid_moves = self.black_pawns.get_moves(
+                    pos, self.board, opponent_double_push)
 
         return valid_moves
 
@@ -336,9 +357,9 @@ class GameEngine:
 
     def is_pawn_double_move(self, prev_move, curr_move):
         if globals.IS_WHITES_TURN:
-            return self.white_pawns.is_double_move(prev_move, curr_move)
+            return self.white_pawns.is_double_move(prev_move, curr_move, self.board)
         else:
-            return self.black_pawns.is_double_move(prev_move, curr_move)
+            return self.black_pawns.is_double_move(prev_move, curr_move, self.board)
 
     def set_pawn_double_push(self, pos):
         if globals.IS_WHITES_TURN:
@@ -352,16 +373,133 @@ class GameEngine:
         else:
             return self.black_pawns.is_promotion(pos)
 
-
     def is_en_passant_move(self, pos, opponent_double_push):
         if globals.IS_WHITES_TURN:
             return self.white_pawns.is_en_passant_move(pos, opponent_double_push)
         else:
             return self.black_pawns.is_en_passant_move(pos, opponent_double_push)
 
-
     def get_opponent_pawn_position(self):
         if globals.IS_WHITES_TURN:
             return self.black_pawns.get_double_push()
         else:
             return self.white_pawns.get_double_push()
+
+    def is_pawn(self, piece):
+        return piece == "p" or piece == "P"
+
+    def is_black_in_check(self):
+        return self.black_king.check
+
+    def is_white_in_check(self):
+        return self.white_king.check
+
+    def is_stalemate(self):
+        if globals.IS_WHITES_TURN:
+            return not self.are_valid_moves_left(white=True) and not self.white_king.check
+        else:
+            return not self.are_valid_moves_left(white=False) and not self.black_king.check
+
+    def set_black_king_has_moved(self):
+        self.black_king.set_has_moved()
+
+    def set_white_king_has_moved(self):
+        self.white_king.set_has_moved()
+
+    def set_rook_has_moved(self, pos):
+        if globals.IS_WHITES_TURN:
+            self.white_king.set_rook_has_moved(pos)
+
+        self.black_king.set_rook_has_moved(pos)
+
+    # def can_long_castle(self):
+    #     if globals.IS_WHITES_TURN:
+    #         return self.white_king.can_long_castle()
+    #     return self.black_king.can_long_castle()
+
+    def is_rook(self, piece):
+        return piece == "r" or piece == "R"
+
+    def check_castling_collision(self, is_piece_white, valid_moves):
+        if not is_piece_white:
+            opposite_king = self.white_king
+        else:
+            opposite_king = self.black_king
+
+        can_king_short_castle = opposite_king.can_short_castle(self.board)
+        can_king_long_castle = opposite_king.can_long_castle(self.board)
+
+        long_castle_moves = opposite_king.get_long_castle_empty_squares()
+        short_castle_moves = opposite_king.get_short_castle_empty_squares()
+
+        for move in valid_moves:
+            if can_king_long_castle:
+                if move in long_castle_moves:
+                    opposite_king.set_is_long_castle_possible(False)
+                    break
+
+            if can_king_short_castle:
+                if move in short_castle_moves:
+                    opposite_king.set_is_short_castle_possible(False)
+                    break
+
+    def reset_kings(self):
+        self.clear_king_moves()
+
+        w_moves = self.get_initial_king_moves(self.white_king.position)
+        b_moves = self.get_initial_king_moves(self.black_king.position)
+
+        self.set_white_king_moves(w_moves)
+        self.set_black_king_moves(b_moves)
+
+    def set_white_king_pos(self, pos):
+        self.white_king.position = pos
+        self.white_king.valid_moves = self.get_initial_king_moves(pos)
+
+    def set_black_king_pos(self, pos):
+        self.black_king.position = pos
+        self.black_king.valid_moves = self.get_initial_king_moves(pos)
+
+    def is_king(self, piece):
+        return piece == "K" or piece == "k"
+
+    def is_long_castling_possible(self):
+        if globals.IS_WHITES_TURN:
+            return self.white_king.can_long_castle(self.board)
+
+        return self.black_king.can_long_castle(self.board)
+
+    def is_short_castling_possible(self):
+        if globals.IS_WHITES_TURN:
+            return self.white_king.can_short_castle(self.board)
+
+        return self.black_king.can_short_castle(self.board)
+
+    def get_short_castle_pos(self):
+        if globals.IS_WHITES_TURN:
+            return self.white_king.get_short_castle_pos()
+
+        return self.black_king.get_short_castle_pos()
+
+    def get_long_castle_pos(self):
+        if globals.IS_WHITES_TURN:
+            return self.white_king.get_long_castle_pos()
+
+        return self.black_king.get_long_castle_pos()
+
+    def check_and_perform_castling(self, new_pos):
+        if new_pos == self.get_long_castle_pos() and self.is_long_castling_possible():
+            if globals.IS_WHITES_TURN:
+                self.update(Position(new_pos.x, new_pos.y + 1), "R")
+            else:
+                self.update(Position(new_pos.x, new_pos.y + 1), "r")
+
+            self.update(Position(new_pos.x, new_pos.y - 2), None)
+        elif new_pos == self.get_short_castle_pos() and self.is_short_castling_possible():
+            if globals.IS_WHITES_TURN:
+                self.update(Position(new_pos.x, new_pos.y - 1), "R")
+            else:
+
+                self.update(Position(new_pos.x, new_pos.y - 1), "r")
+
+            self.update(Position(new_pos.x, new_pos.y + 1), None)

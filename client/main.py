@@ -1,10 +1,35 @@
 import pygame
 from board import Board
-from game_engine import GameEngine
+from game import GameEngine
 from constants import *
 import globals
 from position import Position
 import copy
+import threading
+import socket
+import sys
+
+
+host = "192.168.134.128"
+port = 5050
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+opp_move = []
+cc = []
+
+def send(data):
+    try:
+        client.send(str.encode(data))
+        return client.recv(128).decode()
+    except socket.error as e:
+        print(e)
+
+def connect():
+    try:
+        client.connect((host, port))
+        client.send(str.encode("Get color"))
+        return client.recv(128).decode()
+    except:
+        pass
 
 def main():
     running = True
@@ -36,9 +61,9 @@ def main():
 
     board.draw()
     chess_board = board.get_board_from_fen_sequence()
-    game_engine = GameEngine(chess_board)
+    game = GameEngine(chess_board)
 
-    board.show_pieces(game_engine, None, initial_run)
+    board.show_pieces(game, None, initial_run)
     initial_run = False
     pygame.display.update()
 
@@ -51,6 +76,14 @@ def main():
     white_check = False
     black_check = False
 
+
+    # client.connect((host, port))
+    lol = connect()
+    print(lol)
+
+    # receive_thread = threading.Thread(target=receive)
+    # receive_thread.start()
+    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -62,7 +95,7 @@ def main():
                 mouse = event.pos
                 mouse_x, mouse_y = mouse
                 pos, piece = board.get_row_col_and_piece(
-                    mouse_x, mouse_y, game_engine)
+                    mouse_x, mouse_y, game)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse = event.pos
@@ -70,7 +103,7 @@ def main():
 
                 mouse_x, mouse_y = mouse
                 pos, piece = board.get_row_col_and_piece(
-                    mouse_x, mouse_y, game_engine)
+                    mouse_x, mouse_y, game)
                 
                 clicked_pos = copy.deepcopy(pos)
 
@@ -82,7 +115,7 @@ def main():
 
 
 
-                        valid_moves = game_engine.get_valid_moves(pos)
+                        valid_moves = game.get_valid_moves(pos)
                         drop_pos = True
                         selected_piece = pos, piece
                         drag = True
@@ -95,7 +128,7 @@ def main():
                 if drop_pos:
                     old_pos, piece = selected_piece
                     new_pos, drop_piece = board.get_row_col_and_piece(
-                        mouse_x, mouse_y, game_engine)
+                        mouse_x, mouse_y, game)
 
                     if old_pos != new_pos and new_pos in valid_moves:
                         if drop_piece == None or isinstance(drop_piece, str) and \
@@ -104,72 +137,77 @@ def main():
                             white_check = False
                             black_check = False
 
-                            if game_engine.is_king(piece):
-                                game_engine.check_and_perform_castling(pos)
+                            if game.is_king(piece):
+                                game.check_and_perform_castling(pos)
 
-                            game_engine.update(old_pos, None)
-                            game_engine.update(new_pos, piece)
+                            game.update(old_pos, None)
+                            game.update(new_pos, piece)
 
-                            if game_engine.is_pawn(piece):
-                                if game_engine.is_pawn_double_move(old_pos, new_pos):
+                            if game.is_pawn(piece):
+                                if game.is_pawn_double_move(old_pos, new_pos):
                                     print("pawn double move")
-                                    game_engine.set_pawn_double_push(new_pos)
+                                    game.set_pawn_double_push(new_pos)
                                 else:
                                     print("not double move")
 
-                                opponent_pawn_pos = game_engine.get_opponent_pawn_position()
+                                opponent_pawn_pos = game.get_opponent_pawn_position()
 
-                                if game_engine.is_en_passant_move(new_pos, opponent_pawn_pos):
-                                    game_engine.update(opponent_pawn_pos, None)
+                                if game.is_en_passant_move(new_pos, opponent_pawn_pos):
+                                    game.update(opponent_pawn_pos, None)
 
-                                if game_engine.is_promotion(new_pos):
+                                if game.is_promotion(new_pos):
                                     if globals.IS_WHITES_TURN:
-                                        game_engine.update(new_pos, "Q")
+                                        game.update(new_pos, "Q")
                                     else:
-                                        game_engine.update(new_pos, "q")
+                                        game.update(new_pos, "q")
 
+                            board.convert_board_to_fen_sequence(game)
 
-                            board.convert_board_to_fen_sequence(game_engine)
+                            xd = board.get_fen_sequence()
+                            receive = send(xd)
+                            print("receive")
+                            print(receive)
+                            # message = client.recv(1024)
 
-                            if game_engine.is_rook(piece):
-                                game_engine.set_rook_has_moved(old_pos)
+                            if game.is_rook(piece):
+                                game.set_rook_has_moved(old_pos)
 
                             if piece == "k":
-                                game_engine.set_black_king_pos(new_pos)
-                                game_engine.set_black_king_has_moved()
+                                game.set_black_king_pos(new_pos)
+                                game.set_black_king_has_moved()
                             elif piece == "K":
-                                game_engine.set_white_king_pos(new_pos)
-                                game_engine.set_white_king_has_moved()
+                                game.set_white_king_pos(new_pos)
+                                game.set_white_king_has_moved()
 
-                            board.set_king_valid_moves(game_engine)
+                            board.set_king_valid_moves(game)
 
-                            game_engine.clear_opponent_double_push()
+                            game.clear_opponent_double_push()
 
                             globals.IS_WHITES_TURN = not globals.IS_WHITES_TURN
 
-                            if game_engine.is_checkmate():
+                            if game.is_checkmate():
                                 print("checkmate")
 
-                            if game_engine.is_stalemate():
+                            if game.is_stalemate():
                                 print("stalemate")
 
-                            if game_engine.is_white_in_check():
+                            if game.is_white_in_check():
                                 white_check = True
-                            if game_engine.is_black_in_check():
+                            if game.is_black_in_check():
                                 black_check = True  
 
         surface.fill((0, 0, 0))
         board.draw()
 
         if white_check:
-            board.show_check(game_engine, is_white=True)
+            board.show_check(game, is_white=True)
         if black_check:
-            board.show_check(game_engine, is_white=False)
+            board.show_check(game, is_white=False)
 
-        board.show_pieces(game_engine, drag_pos)
+        board.show_pieces(game, drag_pos)
 
         if valid_moves != []:
-            board.show_valid_moves(valid_moves, game_engine.get_board(), clicked_pos)
+            board.show_valid_moves(valid_moves, game.get_board(), clicked_pos)
 
         if drag and piece_img != None:
             x = mouse[0] - piece_img.get_height() / 2

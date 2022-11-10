@@ -204,3 +204,6 @@ class Board:
 
     def get_piece_img(self, piece):
         return self.piece_imgs[piece]
+
+    def get_fen_sequence(self):
+        return self.fen_sequence

@@ -4,7 +4,7 @@ from game_engine import GameEngine
 from constants import *
 import globals
 from position import Position
-
+import copy
 
 def main():
     running = True
@@ -71,6 +71,8 @@ def main():
                 mouse_x, mouse_y = mouse
                 pos, piece = board.get_row_col_and_piece(
                     mouse_x, mouse_y, game_engine)
+                
+                clicked_pos = copy.deepcopy(pos)
 
                 if piece != None:
                     if globals.IS_WHITES_TURN == piece.isupper():
@@ -78,8 +80,9 @@ def main():
                             drag_pos = pos
                             piece_img = board.get_piece_img(piece)
 
+
+
                         valid_moves = game_engine.get_valid_moves(pos)
-                        board.show_valid_moves(valid_moves)
                         drop_pos = True
                         selected_piece = pos, piece
                         drag = True
@@ -102,7 +105,7 @@ def main():
                             black_check = False
 
                             if game_engine.is_king(piece):
-                                game_engine.check_and_perform_castling(new_pos)
+                                game_engine.check_and_perform_castling(pos)
 
                             game_engine.update(old_pos, None)
                             game_engine.update(new_pos, piece)
@@ -124,6 +127,7 @@ def main():
                                         game_engine.update(new_pos, "Q")
                                     else:
                                         game_engine.update(new_pos, "q")
+
 
                             board.convert_board_to_fen_sequence(game_engine)
 
@@ -154,6 +158,7 @@ def main():
                             if game_engine.is_black_in_check():
                                 black_check = True  
 
+        surface.fill((0, 0, 0))
         board.draw()
 
         if white_check:
@@ -164,7 +169,7 @@ def main():
         board.show_pieces(game_engine, drag_pos)
 
         if valid_moves != []:
-            board.show_valid_moves(valid_moves)
+            board.show_valid_moves(valid_moves, game_engine.get_board(), clicked_pos)
 
         if drag and piece_img != None:
             x = mouse[0] - piece_img.get_height() / 2

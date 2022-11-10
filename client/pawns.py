@@ -5,24 +5,24 @@ import globals
 
 class Pawns:
     def __init__(self, is_white):
-        self.initial_pawn_positions = []
-        self.double_push = None
-        self.is_white = is_white
-        self.first_move = [[-1, 0], [-2, 0]]
-        self.move = [[-1, 0]]
-        self.capture_moves = [[-1, 1], [-1, -1]]
+        self._initial_pawn_positions = []
+        self._double_push = None
+        self._is_white = is_white
+        self._first_move = [[-1, 0], [-2, 0]]
+        self._move = [[-1, 0]]
+        self._capture_moves = [[-1, 1], [-1, -1]]
 
         if is_white:
-            self.initial_pawn_positions = [
+            self._initial_pawn_positions = [
                 Position(6, i) for i in range(BOARD_SIZE)]
-            self.promotion_list = [Position(0, i) for i in range(BOARD_SIZE)]
+            self._promotion_list = [Position(0, i) for i in range(BOARD_SIZE)]
         else:
-            self.initial_pawn_positions = [
+            self._initial_pawn_positions = [
                 Position(1, i) for i in range(BOARD_SIZE)]
-            self.promotion_list = [Position(7, i) for i in range(BOARD_SIZE)]
+            self._promotion_list = [Position(7, i) for i in range(BOARD_SIZE)]
 
     def is_first_move(self, pos):
-        return pos in self.initial_pawn_positions
+        return pos in self._initial_pawn_positions
 
     def is_en_passant_possible(self, pos, opponent_double_push):
         if opponent_double_push == None:
@@ -30,13 +30,13 @@ class Pawns:
         return (pos.y == opponent_double_push.y + 1 or pos.y == opponent_double_push.y - 1) and pos.x == opponent_double_push.x
 
     def set_double_push(self, pos):
-        self.double_push = pos
+        self._double_push = pos
 
     def clear_double_push(self):
-        self.double_push = None
+        self._double_push = None
 
     def get_double_push(self):
-        return self.double_push
+        return self._double_push
 
     def get_en_passant_move(self, opponent_double_push):
         if globals.IS_WHITES_TURN:
@@ -47,10 +47,10 @@ class Pawns:
     def get_possible_capturing_moves(self, pos, board):
         if board[pos.x][pos.y].isupper():
             possible_captures = [Position(pos.x + move[0], pos.y + move[1])
-                                 for move in self.capture_moves]
+                                 for move in self._capture_moves]
         else:
             possible_captures = [Position(pos.x - move[0], pos.y - move[1])
-                                 for move in self.capture_moves]
+                                 for move in self._capture_moves]
 
         valid_captures = []
 
@@ -67,14 +67,17 @@ class Pawns:
     def get_moves(self, pos, board, opponent_double_push):
         capturing_moves = self.get_possible_capturing_moves(pos, board)
 
-        if pos in self.initial_pawn_positions:
-            
+        for move in capturing_moves:
+            if board[move.x][move.y] == "k" or board[move.x][move.y] == "K":
+                return capturing_moves
+
+        if pos in self._initial_pawn_positions:
             if board[pos.x][pos.y].isupper():
                 valid_moves = [Position(pos.x + move[0], pos.y + move[1])
-                               for move in self.first_move]
+                               for move in self._first_move]
             else:
                 valid_moves = [Position(pos.x - move[0], pos.y - move[1])
-                               for move in self.first_move]
+                               for move in self._first_move]
 
             for move in valid_moves:
                 if board[move.x][move.y] != None:
@@ -84,10 +87,10 @@ class Pawns:
         else:
             if board[pos.x][pos.y].isupper():
                 valid_moves = [Position(pos.x + move[0], pos.y + move[1])
-                               for move in self.move]
+                               for move in self._move]
             else:
                 valid_moves = [Position(pos.x - move[0], pos.y - move[1])
-                               for move in self.move]
+                               for move in self._move]
 
             for move in valid_moves:
                 if 0 <= move.x < BOARD_SIZE and 0 <= move.y < BOARD_SIZE:
@@ -105,8 +108,8 @@ class Pawns:
         return valid_moves
 
     def is_double_move(self, prev_move, curr_move, board):
-        if board[prev_move.x][prev_move.y] != None:
-            if board[prev_move.x][prev_move.y].isupper():
+        if board[curr_move.x][curr_move.y] != None:
+            if board[curr_move.x][curr_move.y].isupper():
                 if prev_move.x - 2 == curr_move.x and curr_move.y == prev_move.y:
                     return True
             elif prev_move.x + 2 == curr_move.x and curr_move.y == prev_move.y:
@@ -115,10 +118,10 @@ class Pawns:
         return False
 
     def set_double_move(self, pos):
-        self.double_push = pos
+        self._double_push = pos
 
     def is_promotion(self, pos):
-        return pos in self.promotion_list
+        return pos in self._promotion_list
 
     def is_en_passant_move(self, pos, opponent_double_push):
         if opponent_double_push == None:

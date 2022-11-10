@@ -146,15 +146,26 @@ class Board:
 
         self.fen_sequence = "".join(fen_sequence)
 
-    def show_valid_moves(self, valid_moves):
-        circle_radius = 15
+    def show_valid_moves(self, valid_moves, board, pos):
+        curr_piece = board[pos.x][pos.y]
 
-        for valid_move in valid_moves:
-            pygame.draw.circle(self.surface,
+        for i, valid_move in enumerate(valid_moves):
+            if board[valid_move.x][valid_move.y] == None or curr_piece == None:
+                circle_radius = 15
+                pygame.draw.circle(self.surface,
                                (64, 64, 64),
                                (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
                                 self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
                                circle_radius)
+
+            elif board[valid_move.x][valid_move.y].isupper() != curr_piece.isupper():
+                circle_radius = 50
+                pygame.draw.circle(self.surface,
+                               (64, 64, 64),
+                               (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
+                                self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
+                               circle_radius, width=8)
+            
 
     def set_king_valid_moves(self, game_engine):
         game_engine.reset_kings()
@@ -174,6 +185,15 @@ class Board:
 
         x = king.position.x
         y = king.position.y
+
+        short_castle_pos = king.get_short_castle_pos()
+        long_castle_pos = king.get_long_castle_pos()
+
+        if long_castle_pos in king.valid_moves:
+            king.valid_moves.remove(long_castle_pos)
+        if short_castle_pos in king.valid_moves:
+            king.valid_moves.remove(short_castle_pos)
+
 
         pygame.draw.rect(self.surface,
                          self.red,

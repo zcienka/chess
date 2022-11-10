@@ -54,30 +54,28 @@ class GameEngine:
                     self.black_king.position = square
                     valid_moves = self.black_king.valid_moves
 
-                    if self.black_king.can_short_castle(self.board):
-                        valid_moves.append(
-                            self.black_king.get_short_castle_pos())
+                    if not self.black_king.check:
+                        if self.black_king.can_short_castle(self.board):
+                            valid_moves.append(
+                                self.black_king.get_short_castle_pos())
 
-                    if self.black_king.can_long_castle(self.board):
-                        valid_moves.append(
-                            self.black_king.get_long_castle_pos())
+                        if self.black_king.can_long_castle(self.board):
+                            valid_moves.append(
+                                self.black_king.get_long_castle_pos())
 
-                    # if valid_moves != []:
-                    #     self.black_king.check = False
                 else:
                     self.white_king.position = square
+
                     valid_moves = self.white_king.valid_moves
 
-                    if self.white_king.can_short_castle(self.board):
-                        valid_moves.append(
-                            self.white_king.get_short_castle_pos())
+                    if not self.white_king.check:
+                        if self.white_king.can_short_castle(self.board):
+                            valid_moves.append(
+                                self.white_king.get_short_castle_pos())
 
-                    if self.white_king.can_long_castle(self.board):
-                        valid_moves.append(
-                            self.white_king.get_long_castle_pos())
-
-                    # if valid_moves != []:
-                    #     self.white_king.check = False
+                        if self.white_king.can_long_castle(self.board):
+                            valid_moves.append(
+                                self.white_king.get_long_castle_pos())
 
         self.check_collision_with_king_moves(is_white)
 
@@ -336,7 +334,7 @@ class GameEngine:
 
     def get_pawn_valid_moves(self, pos):
         valid_moves = []
-        
+
         if self.board[pos.x][pos.y] != None:
             if self.board[pos.x][pos.y].isupper():
                 opponent_double_push = self.black_pawns.get_double_push()
@@ -346,6 +344,7 @@ class GameEngine:
                 opponent_double_push = self.white_pawns.get_double_push()
                 valid_moves = self.black_pawns.get_moves(
                     pos, self.board, opponent_double_push)
+
 
         return valid_moves
 
@@ -412,11 +411,6 @@ class GameEngine:
 
         self.black_king.set_rook_has_moved(pos)
 
-    # def can_long_castle(self):
-    #     if globals.IS_WHITES_TURN:
-    #         return self.white_king.can_long_castle()
-    #     return self.black_king.can_long_castle()
-
     def is_rook(self, piece):
         return piece == "r" or piece == "R"
 
@@ -426,22 +420,26 @@ class GameEngine:
         else:
             opposite_king = self.black_king
 
-        can_king_short_castle = opposite_king.can_short_castle(self.board)
-        can_king_long_castle = opposite_king.can_long_castle(self.board)
-
-        long_castle_moves = opposite_king.get_long_castle_empty_squares()
-        short_castle_moves = opposite_king.get_short_castle_empty_squares()
+        # long_castle_moves = opposite_king.get_long_castle_empty_squares()
+        # short_castle_moves = opposite_king.get_short_castle_empty_squares()
+        pos_after_long_castle = opposite_king.get_pos_after_long_castle()
+        pos_after_short_castle = opposite_king.get_pos_after_short_castle()
+        
 
         for move in valid_moves:
-            if can_king_long_castle:
-                if move in long_castle_moves:
-                    opposite_king.set_is_long_castle_possible(False)
-                    break
+            if move == pos_after_long_castle or opposite_king.check:
+                opposite_king.set_is_long_castle_possible(False)
 
-            if can_king_short_castle:
-                if move in short_castle_moves:
-                    opposite_king.set_is_short_castle_possible(False)
-                    break
+                if move in opposite_king.valid_moves:
+                    opposite_king.valid_moves.remove(move)
+                break
+
+            if move == pos_after_short_castle or opposite_king.check:
+                opposite_king.set_is_short_castle_possible(False)
+
+                if move in opposite_king.valid_moves:
+                    opposite_king.valid_moves.remove(move)
+                break
 
     def reset_kings(self):
         self.clear_king_moves()
@@ -465,15 +463,15 @@ class GameEngine:
 
     def is_long_castling_possible(self):
         if globals.IS_WHITES_TURN:
-            return self.white_king.can_long_castle(self.board)
+            return self.white_king.can_long_castle(self.board) and not self.white_king.check
 
-        return self.black_king.can_long_castle(self.board)
+        return self.black_king.can_long_castle(self.board) and not self.black_king.check
 
     def is_short_castling_possible(self):
         if globals.IS_WHITES_TURN:
-            return self.white_king.can_short_castle(self.board)
+            return self.white_king.can_short_castle(self.board) and not self.white_king.check
 
-        return self.black_king.can_short_castle(self.board)
+        return self.black_king.can_short_castle(self.board) and not self.black_king.check
 
     def get_short_castle_pos(self):
         if globals.IS_WHITES_TURN:
@@ -499,7 +497,6 @@ class GameEngine:
             if globals.IS_WHITES_TURN:
                 self.update(Position(new_pos.x, new_pos.y - 1), "R")
             else:
-
                 self.update(Position(new_pos.x, new_pos.y - 1), "r")
 
             self.update(Position(new_pos.x, new_pos.y + 1), None)

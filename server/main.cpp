@@ -12,14 +12,26 @@
 #include <sys/wait.h>
 #include <stdlib.h>
 #include <time.h>
-#include<string>
+#include <string>
+#include <random>
+#include <algorithm>
 
 void childend(int signo)
 {
     wait(NULL);
 }
 
-// int main(int argc, char *argv[])
+struct Game
+{
+    std::vector<int> players;
+    int id;
+};
+
+int getNewId(std::vector<Game> games)
+{
+    return games.size();
+};
+
 int main()
 {
     socklen_t slt;
@@ -36,35 +48,96 @@ int main()
     bind(sfd, (struct sockaddr *)&saddr, sizeof(saddr));
     listen(sfd, 10);
     int clientRequest;
+    int randomColor;
+    char clientId[10];
+    std::vector<Game> games;
+    int currentUserId;
 
     while (1)
     {
         slt = sizeof(caddr);
         cfd = accept(sfd, (struct sockaddr *)&caddr, &slt);
-        // printf("%d", cfd);
-        // printf("%s", caddr.sin_port);
-        // printf("\n\n");
-        std::cout << "New connection from: "<< inet_ntoa((struct in_addr)caddr.sin_addr) << std::endl;
+        std::cout << "cfd:" << cfd << std::endl<<std::endl;
+
+        std::cout << "New connection from: " << inet_ntoa((struct in_addr)caddr.sin_addr) << std::endl;
+        std::cout << "cfd" << cfd << std::endl;
+
+        char query[129];
 
         if (fork() == 0)
         {
             close(sfd);
-            char query[129];
+            char query[128];
             memset(query, 0, strlen(query));
 
             while (1)
             {
-                memset(query, 0, strlen(query));
+                memset(query, 0, 128);
                 clientRequest = read(cfd, query, 128);
+                bool addedToNewGame = false;
+                Game game = Game();
 
-               if (clientRequest != -1)
+                std::cout << std::endl;
+
+                if (clientRequest != -1 && strcmp(query, "First connection") == 0)
                 {
-                    printf("%s", query);
-                    write(cfd, query, strlen(query));
+                    for (int i = 0; i < games.size(); i++)
+                    {
+                        if (games[i].players.size() == 1)
+                        {
+                            addedToNewGame = true;
+                            games[i].players.emplace_back(cfd);
+                            game = games[i];
+                            break;
+                        }
+                    }
+
+                    if (!addedToNewGame)
+                    {
+                        game.players.emplace_back(cfd);
+                        game.id = getNewId(games);
+                        games.emplace_back(game);
+                        
+                        std::cout << "game.id " << game.id << std::endl;
+
+                        for (int player : game.players)
+                        {
+                            std::cout << "player: " << player << std::endl;
+                        }
+                        std::cout << std::endl;
+                        std::cout << "game.id " << game.id << std::endl;
+                    }
+                    std::cout << "addedToNewGame" << addedToNewGame << std::endl;
+                    char gameIdString[3];
+
+                    sprintf(gameIdString, "%d", game.id);
+
+                    for (int player_cfd : game.players)
+                    {
+                        write(cfd, gameIdString, strlen(gameIdString)); 
+                    }
+                }
+                else if (clientRequest != -1)
+                {
+                    std::cout << "query" << query <<std::endl;
+                    int currentGameId = 0;
+                    for (int i = 0; i < games.size(); i++)
+                    {
+                        if  (std::find(games[i].players.begin(), games[i].players.end(), cfd) != games[i].players.end())
+                        {
+                            currentGameId = i;
+                            std::cout << "currentGameId: " << currentGameId << std::endl;
+                        }
+                    }
+
+                    for (int playerCfd : games[currentGameId].players)
+                    {
+                        write(playerCfd, query, strlen(query));
+                    }
                 }
             }
 
-            close(cfd);
+            close(sfd);
             exit(0);
         }
         else

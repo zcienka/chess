@@ -7,7 +7,7 @@ from pawns import Pawns
 import globals
 
 
-class GameEngine:
+class Game:
     def __init__(self, game_board):
         self.possible_moves = defaultdict(list, {
             "R": [[-1, 0], [1, 0], [0, 1], [0, -1]],
@@ -500,3 +500,6 @@ class GameEngine:
                 self.update(Position(new_pos.x, new_pos.y - 1), "r")
 
             self.update(Position(new_pos.x, new_pos.y + 1), None)
+
+    def set_board(self, game_board):
+        self.board = game_board

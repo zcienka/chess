@@ -1,32 +1,52 @@
 import pygame
 from board import Board
-from game import GameEngine
+from game import Game
 from constants import *
 import globals
 from position import Position
 import copy
-import threading
 import socket
-import sys
+import threading
 
+surface = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
+
+# globals.FEN_SEQUENCE= "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+board = Board(surface, globals.FEN_SEQUENCE)
+
+board.draw()
+chess_board = board.get_board_from_fen_sequence()
+game = Game(chess_board)
 
 host = "192.168.134.128"
 port = 5050
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-opp_move = []
-cc = []
+lista = []
+
+def receive():
+    while True:
+        try:
+            msg_receive = client.recv(128)
+            globals.FEN_SEQUENCE = msg_receive.decode()
+            # print("xd")
+            surface.fill((0, 0, 0))
+            board.draw()
+            board.set_fen_sequence(globals.FEN_SEQUENCE)
+            board.show_pieces(game)
+        except socket.error as e:
+            print(e)
 
 def send(data):
     try:
         client.send(str.encode(data))
-        return client.recv(128).decode()
+        return 
     except socket.error as e:
         print(e)
 
 def connect():
     try:
         client.connect((host, port))
-        client.send(str.encode("Get color"))
+        client.send(str.encode("First connection"))
+
         return client.recv(128).decode()
     except:
         pass
@@ -35,20 +55,18 @@ def main():
     running = True
     pygame.init()
     pygame.display.set_caption("Chess")
-    surface = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
     FPS = 60
 
-    # fen_sequence = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/"  # mating test
-    # fen_sequence = ""
-    # fen_sequence = "4k3/8/4q3/8/8/8/6K1/4R3" # pin test #1
-    # fen_sequence = "8/8/1Rr1k3/8/4q3/4R3/8/4K3" # pin test #2
+    # globals.FEN_SEQUENCE = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/"  # mating test
+    # globals.FEN_SEQUENCE = ""
+    # globals.FEN_SEQUENCE = "4k3/8/4q3/8/8/8/6K1/4R3" # pin test #1
+    # globals.FEN_SEQUENCE = "8/8/1Rr1k3/8/4q3/4R3/8/4K3" # pin test #2
 
-    # fen_sequence = "r1b1k2r/pp1n1ppp/5n2/1Bb1q3/8/4N3/PPP2PPP/R1BQK2R"
-    fen_sequence = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+    # globals.FEN_SEQUENCE = "r1b1k2r/pp1n1ppp/5n2/1Bb1q3/8/4N3/PPP2PPP/R1BQK2R"
 
-    # fen_sequence = "k7/7R/8/8/8/8/8/2Q4K" # stalemate test
+    # globals.FEN_SEQUENCE = "k7/7R/8/8/8/8/8/2Q4K" # stalemate test
 
-    board = Board(surface, fen_sequence)
+    
 
     pygame.display.flip()
     pygame.display.update()
@@ -58,10 +76,9 @@ def main():
     clock = pygame.time.Clock()
 
     initial_run = True
+    drag_pos = None
 
-    board.draw()
-    chess_board = board.get_board_from_fen_sequence()
-    game = GameEngine(chess_board)
+
 
     board.show_pieces(game, None, initial_run)
     initial_run = False
@@ -70,22 +87,20 @@ def main():
     piece_img = None
     pos = None
     drag = False
-    drag_pos = None
     checkmate = False
     valid_moves = []
     white_check = False
     black_check = False
 
+    game_id = connect()
+    print(game_id)
 
-    # client.connect((host, port))
-    lol = connect()
-    print(lol)
+    receive_thread = threading.Thread(target=receive)
+    receive_thread.start()
 
-    # receive_thread = threading.Thread(target=receive)
-    # receive_thread.start()
-    
     while running:
         for event in pygame.event.get():
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
@@ -106,14 +121,12 @@ def main():
                     mouse_x, mouse_y, game)
                 
                 clicked_pos = copy.deepcopy(pos)
-
+                
                 if piece != None:
                     if globals.IS_WHITES_TURN == piece.isupper():
                         if drag == False:
                             drag_pos = pos
-                            piece_img = board.get_piece_img(piece)
-
-
+                            piece_img = board.get_image(piece)
 
                         valid_moves = game.get_valid_moves(pos)
                         drop_pos = True
@@ -163,11 +176,6 @@ def main():
 
                             board.convert_board_to_fen_sequence(game)
 
-                            xd = board.get_fen_sequence()
-                            receive = send(xd)
-                            print("receive")
-                            print(receive)
-                            # message = client.recv(1024)
 
                             if game.is_rook(piece):
                                 game.set_rook_has_moved(old_pos)
@@ -185,6 +193,9 @@ def main():
 
                             globals.IS_WHITES_TURN = not globals.IS_WHITES_TURN
 
+                            fen_sequence = board.get_fen_sequence()
+                            send(fen_sequence)
+                
                             if game.is_checkmate():
                                 print("checkmate")
 

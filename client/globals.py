@@ -1,1 +1,2 @@
 IS_WHITES_TURN = True
+FEN_SEQUENCE = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"

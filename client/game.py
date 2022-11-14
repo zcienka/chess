@@ -8,7 +8,7 @@ import globals
 
 
 class Game:
-    def __init__(self, game_board):
+    def __init__(self):
         self.possible_moves = defaultdict(list, {
             "R": [[-1, 0], [1, 0], [0, 1], [0, -1]],
             "B": [[-1, -1], [-1, 1], [1, 1], [1, -1]],
@@ -17,7 +17,7 @@ class Game:
             "K": [[-1, 0], [1, 0], [0, 1], [0, -1], [-1, -1], [-1, 1], [1, 1], [1, -1]],
         })
 
-        self.board = game_board
+        self.board = []
 
         self.white_king = King("K")
         self.black_king = King("k")
@@ -158,11 +158,11 @@ class Game:
         self.white_king.check = False
         self.black_king.check = False
 
-        self.black_king.set_is_short_castle_possible(True)
-        self.black_king.set_is_long_castle_possible(True)
+        self.black_king.set_is_short_castle_collision(False)
+        self.black_king.set_is_long_castle_collision(False)
 
-        self.white_king.set_is_short_castle_possible(True)
-        self.white_king.set_is_long_castle_possible(True)
+        self.white_king.set_is_short_castle_collision(False)
+        self.white_king.set_is_long_castle_collision(False)
 
     def get_white_king(self):
         return self.white_king
@@ -345,7 +345,6 @@ class Game:
                 valid_moves = self.black_pawns.get_moves(
                     pos, self.board, opponent_double_push)
 
-
         return valid_moves
 
     def clear_opponent_double_push(self):
@@ -408,8 +407,8 @@ class Game:
     def set_rook_has_moved(self, pos):
         if globals.IS_WHITES_TURN:
             self.white_king.set_rook_has_moved(pos)
-
-        self.black_king.set_rook_has_moved(pos)
+        else:
+            self.black_king.set_rook_has_moved(pos)
 
     def is_rook(self, piece):
         return piece == "r" or piece == "R"
@@ -424,18 +423,17 @@ class Game:
         # short_castle_moves = opposite_king.get_short_castle_empty_squares()
         pos_after_long_castle = opposite_king.get_pos_after_long_castle()
         pos_after_short_castle = opposite_king.get_pos_after_short_castle()
-        
 
         for move in valid_moves:
             if move == pos_after_long_castle or opposite_king.check:
-                opposite_king.set_is_long_castle_possible(False)
+                opposite_king.set_is_long_castle_collision(False)
 
                 if move in opposite_king.valid_moves:
                     opposite_king.valid_moves.remove(move)
                 break
 
             if move == pos_after_short_castle or opposite_king.check:
-                opposite_king.set_is_short_castle_possible(False)
+                opposite_king.set_is_short_castle_collision(False)
 
                 if move in opposite_king.valid_moves:
                     opposite_king.valid_moves.remove(move)
@@ -503,3 +501,15 @@ class Game:
 
     def set_board(self, game_board):
         self.board = game_board
+
+    def set_short_castle_possible(self, is_possible, white_king=None, black_king=None):
+        if white_king:
+            self.white_king.set_is_short_castle_possible(is_possible)
+        elif black_king:
+            self.black_king.set_is_short_castle_possible(is_possible)
+
+    def set_long_castle_possible(self, is_possible, white_king=None, black_king=None):
+        if white_king:
+            self.white_king.set_is_long_castle_possible(is_possible)
+        elif black_king:
+            self.black_king.set_is_long_castle_possible(is_possible)

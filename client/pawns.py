@@ -5,24 +5,23 @@ import globals
 
 class Pawns:
     def __init__(self, is_white):
-        self._initial_pawn_positions = []
-        self._double_push = None
-        self._is_white = is_white
+        self.initial_pawn_positions = []
+        self.double_push = None
         self._first_move = [[-1, 0], [-2, 0]]
         self._move = [[-1, 0]]
         self._capture_moves = [[-1, 1], [-1, -1]]
 
         if is_white:
-            self._initial_pawn_positions = [
+            self.initial_pawn_positions = [
                 Position(6, i) for i in range(BOARD_SIZE)]
             self._promotion_list = [Position(0, i) for i in range(BOARD_SIZE)]
         else:
-            self._initial_pawn_positions = [
+            self.initial_pawn_positions = [
                 Position(1, i) for i in range(BOARD_SIZE)]
             self._promotion_list = [Position(7, i) for i in range(BOARD_SIZE)]
 
     def is_first_move(self, pos):
-        return pos in self._initial_pawn_positions
+        return pos in self.initial_pawn_positions
 
     def is_en_passant_possible(self, pos, opponent_double_push):
         if opponent_double_push == None:
@@ -30,13 +29,13 @@ class Pawns:
         return (pos.y == opponent_double_push.y + 1 or pos.y == opponent_double_push.y - 1) and pos.x == opponent_double_push.x
 
     def set_double_push(self, pos):
-        self._double_push = pos
+        self.double_push = pos
 
     def clear_double_push(self):
-        self._double_push = None
+        self.double_push = None
 
     def get_double_push(self):
-        return self._double_push
+        return self.double_push
 
     def get_en_passant_move(self, opponent_double_push):
         if globals.IS_WHITES_TURN:
@@ -71,7 +70,7 @@ class Pawns:
             if board[move.x][move.y] == "k" or board[move.x][move.y] == "K":
                 return capturing_moves
 
-        if pos in self._initial_pawn_positions:
+        if pos in self.initial_pawn_positions:
             if board[pos.x][pos.y].isupper():
                 valid_moves = [Position(pos.x + move[0], pos.y + move[1])
                                for move in self._first_move]
@@ -118,7 +117,7 @@ class Pawns:
         return False
 
     def set_double_move(self, pos):
-        self._double_push = pos
+        self.double_push = pos
 
     def is_promotion(self, pos):
         return pos in self._promotion_list

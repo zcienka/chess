@@ -31,15 +31,16 @@ struct User
 	bool isConnected;
 };
 
-struct Game
+typedef struct
 {
 	int id;
 	struct User users[2];
-};
+} Game;
 
-struct Game games[10];
+const int MAX_USERS = 6;
 int users_num = 0;
 int turn = 0;
+Game *games;
 
 void *cthread(void *arg)
 {
@@ -78,13 +79,16 @@ void *cthread(void *arg)
 		// }
 		// else
 		// {
-			userRequest = 0;
-			// userRequest = read(games[0].users[users_num].cfd, query, 128);
-			userRequest = recv(games[0].users[users_num % 2].cfd, query, 1024, 0);
-
-			// printf("xddddddddd\n\n");
-		// }
-		// }
+		userRequest = 0;
+		// userRequest = read(games[0].users[users_num].cfd, query, 128);
+		if (games[0].users[0].isConnected && games[0].users[1].isConnected)
+		{
+			userRequest = recv(games[0].users[turn].cfd, query, 128, 0);
+		}
+		else
+		{
+			userRequest = recv(games[0].users[users_num % 2].cfd, query, 128, 0);
+		}
 
 		if (userRequest != 0)
 		{
@@ -92,7 +96,12 @@ void *cthread(void *arg)
 
 			if (strcmp(query, ASSIGN_COLOR) == 0)
 			{
-					int color = games[0].users[users_num % 2].color;
+				int color = games[0].users[users_num % 2].color;
+
+				if (color == 1)
+				{
+					turn = users_num % 2;
+				}
 
 				char colorStr[2];
 				memset(colorStr, 0, strlen(colorStr));
@@ -104,29 +113,32 @@ void *cthread(void *arg)
 				games[0].users[users_num % 2].isConnected = true;
 				users_num++;
 			}
-			// else if (userRequest != 0 && strcmp(query, "") != 0 && games[0].users[0].isConnected && games[0].users[1].isConnected)
-			// {
-			// 	printf("query %s\n", query);
+			else if (strcmp(query, "") != 0 && games[0].users[0].isConnected && games[0].users[1].isConnected)
+			{
+				printf("query %s\n\n", query);
 
-			// 	// for (int i = 0; i < 2; i++)
-			// 	// {
-			// 	// if (games[0].users[i].isConnected)
-			// 	// {
-			// send(games[0].users[turn].cfd, query, strlen(query), 0);
-			// 	// }
-			// 	// }
-			// }
+				if (turn == 0)
+				{
+					turn = 1;
+				}
+				else if (turn == 1)
+				{
+					turn = 0;
+				}
+
+				send(games[0].users[turn].cfd, query, strlen(query), 0);
+			}
 		}
-
-
 	}
-			close(c->cfd);
-		free(c);
-		return EXIT_SUCCESS;
+	close(c->cfd);
+	free(c);
+	return EXIT_SUCCESS;
 }
 
 int main(int argc, char *argv[])
 {
+	games = (Game *)malloc(sizeof(Game) * MAX_USERS);
+
 	pthread_t tid;
 	socklen_t slt;
 	int sfd, on = 1;
@@ -139,12 +151,12 @@ int main(int argc, char *argv[])
 	sfd = socket(AF_INET, SOCK_STREAM, 0);
 	setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
 	bind(sfd, (struct sockaddr *)&saddr, sizeof(saddr));
-	listen(sfd, 10);
+	listen(sfd, MAX_USERS);
 	srand(time(NULL));
 
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < MAX_USERS; i++)
 	{
-		struct Game game;
+		Game game;
 		game.id = i;
 		int color1 = rand() % 2;
 		// int color1 = 0;

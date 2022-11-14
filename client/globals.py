@@ -1,4 +1,5 @@
 IS_WHITES_TURN = True
 FEN_SEQUENCE = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR KQkq"
-
 ASSIGNED_COLOR = None
+WHITE_CHECK = False
+BLACK_CHECK = False

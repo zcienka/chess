@@ -443,7 +443,14 @@ class Game:
         self.clear_king_moves()
 
         w_moves = self.get_initial_king_moves(self.white_king.position)
+        # print("initial white king moves:", w_moves.x, w_moves.y)
+        print("self.white_king.position",
+              self.white_king.position.x,  self.white_king.position.y)
+
         b_moves = self.get_initial_king_moves(self.black_king.position)
+        # print("initial black king moves:", b_moves.x, b_moves.y)
+        print("self.black_king.position", self.black_king.position.x,
+              self.black_king.position.y)
 
         self.set_white_king_moves(w_moves)
         self.set_black_king_moves(b_moves)

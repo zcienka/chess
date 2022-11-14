@@ -2,8 +2,9 @@ import pygame
 from constants import *
 import math
 from position import Position
-from collections import defaultdict
 import globals
+import numpy
+from position import Position
 
 
 class Board:
@@ -59,8 +60,13 @@ class Board:
 
                 if position != "/" and not position.isdigit():
                     img = self.get_image(position)
-                    self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
-                                                                self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
+
+                    if globals.ASSIGNED_COLOR == 1:
+                        self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * col,
+                                                                    self.offset + 0.5 * self.rectangle_size + self.rectangle_size * row)))
+                    else:
+                        self.surface.blit(img, img.get_rect(center=(self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (BOARD_SIZE - 1 - col),
+                                                                    self.offset + 0.5 * self.rectangle_size + self.rectangle_size * (BOARD_SIZE - 1 - row))))
 
             if not position.isdigit():
                 if position != "/":
@@ -86,43 +92,72 @@ class Board:
 
         board = game.get_board()
 
-        return Position(row, col), board[row][col]
+        if globals.ASSIGNED_COLOR == 1:
+            return Position(row, col), board[row][col]
+        else:
+            return Position(BOARD_SIZE - 1 - row, BOARD_SIZE - 1 - col), board[BOARD_SIZE - 1 - row][BOARD_SIZE - 1 - col]
 
     def set_fen_sequence(self, sequence):
         self.fen_sequence = sequence
 
-    def get_board_from_fen_sequence(self, game):
+    def get_board_from_fen_sequence(self, game, initial_run=False):
         sequence_by_rows = self.fen_sequence.split("/")
         board = []
+        print("sequence_by_rows", sequence_by_rows)
+        break_loop = False
 
-        for i in range(len(sequence_by_rows)):
+        for r in range(len(sequence_by_rows)):
             row = []
-            for piece in sequence_by_rows[i]:
-                if piece == " ":
+            col = 0
+            for j, piece in enumerate(sequence_by_rows[r]):
+                # xadsdsadsad = Position(i, j)
+                # print("position piece \n\n", xadsdsadsad.x, xadsdsadsad.y, piece)
+                if piece == ' ':
+                    break_loop = True
                     break
+               
+                if not initial_run:
+                    if piece == "k" or piece == "K":
+                        if piece == "k":
+                            king = game.get_black_king()
+                        elif piece == "K":
+                            king = game.get_white_king()
+
+                        king.set_pos(Position(r, col))
+
                 if not piece.isdigit():
                     row.append(piece)
+                    col += 1
                 else:
                     row.extend([None for _ in range(int(piece))])
-            # if piece == " ":
-            #     break
-            board.append(row)
+                    col += int(piece)
 
+            if row != []:
+                board.append(row)
+
+            if break_loop:
+                break
+
+        print(numpy.array(board))
         parts = self.fen_sequence.split(" ")
-        castling_part = parts[1]
+        print(parts)
 
-        if "K" not in castling_part:
-            game.set_short_castle_possible(False, white_king=True)
-        elif "Q" not in castling_part:
-            game.set_long_castle_possible(False, white_king=True)
-        elif "k" not in castling_part:
-            game.set_long_castle_possible(False, black_king=True)
-        elif "q" not in castling_part:
-            game.set_long_castle_possible(False, black_king=True)
+        if len(parts) > 1:
+            castling_part = parts[1]
 
-        if len(parts) == 3:
-            en_passant_move = self.chessboard_pos_to_board_coordinates(parts[2])
-            game.set_pawn_double_push(en_passant_move)
+            if "K" not in castling_part:
+                game.set_short_castle_possible(False, white_king=True)
+            elif "Q" not in castling_part:
+                game.set_long_castle_possible(False, white_king=True)
+            elif "k" not in castling_part:
+                game.set_long_castle_possible(False, black_king=True)
+            elif "q" not in castling_part:
+                game.set_long_castle_possible(False, black_king=True)
+
+            if len(parts) == 3:
+                en_passant_move = self.chessboard_pos_to_board_coordinates(
+                    parts[2])
+                game.set_pawn_double_push(en_passant_move)
 
         return board
 
@@ -147,26 +182,27 @@ class Board:
             fen_sequence += "/"
 
         white_king = game.get_white_king()
-        game_board = game.get_board()
+        # game_board = game.get_board()
 
-        if white_king.can_long_castle(game_board) and white_king.can_short_castle(game_board):
+        fen_sequence += " "
+
+        if white_king.get_is_long_castle_possible() and white_king.get_is_short_castle_possible():
             fen_sequence += "KQ"
-        elif white_king.can_long_castle(game_board):
+        elif white_king.get_is_long_castle_possible():
             fen_sequence += "Q"
-        elif white_king.can_short_castle(game_board):
+        elif white_king.get_is_short_castle_possible():
             fen_sequence += "K"
 
         black_king = game.get_black_king()
 
-        if black_king.can_long_castle(game_board) and black_king.can_short_castle(game_board):
+        if black_king.get_is_long_castle_possible() and black_king.get_is_short_castle_possible():
             fen_sequence += "kq"
-        elif black_king.can_long_castle(game_board):
+        elif black_king.get_is_long_castle_possible():
             fen_sequence += "q"
-        elif black_king.can_short_castle(game_board):
+        elif black_king.get_is_short_castle_possible():
             fen_sequence += "k"
 
         if en_passant_move != None:
-
             fen_sequence += " " + \
                 self.board_coordinates_to_chessboard_pos(en_passant_move)
 
@@ -174,19 +210,25 @@ class Board:
         globals.FEN_SEQUENCE = fen_sequence
 
     def board_coordinates_to_chessboard_pos(self, board_coordinates):
+        print("en passant move ", board_coordinates.x, board_coordinates.y)
         chessboard_col = ["a", "b", "c", "d", "e", "f", "g", "h"]
         col = chessboard_col[board_coordinates.y]
-        row = BOARD_SIZE - board_coordinates.x
-        return str(row) + str(col)
+        print("col ", col)
+        row = BOARD_SIZE - int(board_coordinates.x)
+        print("row ", row)
+        return str(col) + str(row)
 
     def chessboard_pos_to_board_coordinates(self, chessboard_pos):
         chessboard_col = ["a", "b", "c", "d", "e", "f", "g", "h"]
         # col = chessboard_col[chessboard_pos.y]
         # row = BOARD_SIZE - chessboard_pos.x
+        print("chessboard_pos[0] \n\n", chessboard_pos[0])
         col = chessboard_col.index(chessboard_pos[0])
+        print("chessboard_pos_to_board_coordinates col", col)
         row = BOARD_SIZE - int(chessboard_pos[1])
-
-        return [row, col]
+        print("chessboard_pos_to_board_coordinates row ", row)
+        print(f"\n\n\n en passant move in list: ${row},  ${col}\n\n\n")
+        return Position(row, col)
 
     def show_valid_moves(self, valid_moves, board, pos):
         curr_piece = board[pos.x][pos.y]
@@ -194,19 +236,35 @@ class Board:
         for valid_move in valid_moves:
             if board[valid_move.x][valid_move.y] == None or curr_piece == None:
                 circle_radius = 15
-                pygame.draw.circle(self.surface,
-                                   (64, 64, 64),
-                                   (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
-                                       self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
-                                   circle_radius)
+
+                if globals.ASSIGNED_COLOR == 1:
+                    pygame.draw.circle(self.surface,
+                                       (64, 64, 64),
+                                       (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
+                                           self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
+                                       circle_radius)
+                else:
+                    pygame.draw.circle(self.surface,
+                                       (64, 64, 64),
+                                       (self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.y) + self.rectangle_size / 2,
+                                           self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.x) + self.rectangle_size / 2),
+                                       circle_radius)
 
             elif board[valid_move.x][valid_move.y].isupper() != curr_piece.isupper():
                 circle_radius = 50
-                pygame.draw.circle(self.surface,
-                                   (64, 64, 64),
-                                   (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
-                                       self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
-                                   circle_radius, width=8)
+
+                if globals.ASSIGNED_COLOR == 1:
+                    pygame.draw.circle(self.surface,
+                                       (64, 64, 64),
+                                       (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
+                                           self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
+                                       circle_radius, width=8)
+                else:
+                    pygame.draw.circle(self.surface,
+                                       (64, 64, 64),
+                                       (self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.y) + self.rectangle_size / 2,
+                                           self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.x) + self.rectangle_size / 2),
+                                       circle_radius, width=8)
 
     def set_king_valid_moves(self, game):
         game.reset_kings()
@@ -235,12 +293,21 @@ class Board:
         if short_castle_pos in king.valid_moves:
             king.valid_moves.remove(short_castle_pos)
 
-        pygame.draw.rect(self.surface,
+        if globals.ASSIGNED_COLOR == 1:
+            pygame.draw.rect(self.surface,
                          self.red,
                          pygame.Rect(self.offset + self.rectangle_size * y,
                                      self.offset + self.rectangle_size * x,
                                      self.rectangle_size,
                                      self.rectangle_size))
+        else:
+            pygame.draw.rect(self.surface,
+                    self.red,
+                    pygame.Rect(self.offset + self.rectangle_size * (BOARD_SIZE - 1 - y),
+                                self.offset + self.rectangle_size * (BOARD_SIZE - 1 - x),
+                                self.rectangle_size,
+                                self.rectangle_size))
+
 
     def get_fen_sequence(self):
         return self.fen_sequence

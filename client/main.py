@@ -15,27 +15,28 @@ board = Board(surface, globals.FEN_SEQUENCE)
 
 board.draw()
 game = Game()
-chess_board = board.get_board_from_fen_sequence(game)
+chess_board = board.get_board_from_fen_sequence(game, initial_run=True)
 game.set_board(chess_board)
 
 host = "192.168.134.128"
 port = 5050
-connection = Connection(host, port, board)
+connection = Connection(host, port, board, game)
 
 
-def xd(piece, old_pos, new_pos):
+def update_game(piece, old_pos, new_pos):
     if game.is_king(piece):
         game.check_and_perform_castling(new_pos)
 
     game.update(old_pos, None)
     game.update(new_pos, piece)
 
-    is_en_passant = False
+    is_double_pawn_move = False
 
     if game.is_pawn(piece):
         if game.is_pawn_double_move(old_pos, new_pos):
             print("pawn double move")
             game.set_pawn_double_push(new_pos)
+            is_double_pawn_move = True
         else:
             print("not double move")
 
@@ -49,10 +50,9 @@ def xd(piece, old_pos, new_pos):
 
         if game.is_en_passant_move(new_pos, opponent_pawn_pos):
             game.update(opponent_pawn_pos, None)
-            is_en_passant = True
 
-    if is_en_passant:
-        board.convert_board_to_fen_sequence(game, opponent_pawn_pos)
+    if is_double_pawn_move:
+        board.convert_board_to_fen_sequence(game, new_pos)
     else:
         board.convert_board_to_fen_sequence(game)
 
@@ -75,6 +75,14 @@ def xd(piece, old_pos, new_pos):
     fen_sequence = board.get_fen_sequence()
     connection.send(fen_sequence)
 
+    if game.is_white_in_check():
+        globals.WHITE_CHECK = True
+        print("white check")
+    if game.is_black_in_check():
+        globals.BLACK_CHECK = True
+        print("black check")
+
+
     if game.is_checkmate():
         print("checkmate")
 
@@ -87,16 +95,7 @@ def xd(piece, old_pos, new_pos):
 def main():
     pygame.init()
     pygame.display.set_caption("Chess")
-    FPS = 40
-
-    # globals.FEN_SEQUENCE = "r1b1k1nr/p2p1p1p/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1/"  # mating test
-    # globals.FEN_SEQUENCE = ""
-    # globals.FEN_SEQUENCE = "4k3/8/4q3/8/8/8/6K1/4R3" # pin test #1
-    # globals.FEN_SEQUENCE = "8/8/1Rr1k3/8/4q3/4R3/8/4K3" # pin test #2
-
-    # globals.FEN_SEQUENCE = "r1b1k2r/pp1n1ppp/5n2/1Bb1q3/8/4N3/PPP2PPP/R1BQK2R"
-
-    # globals.FEN_SEQUENCE = "k7/7R/8/8/8/8/8/2Q4K" # stalemate test
+    FPS = 60
 
     pygame.display.flip()
     pygame.display.update()
@@ -117,9 +116,6 @@ def main():
     drag = False
     checkmate = False
     valid_moves = []
-
-    WHITE_CHECK = False
-    BLACK_CHECK = False
 
     connection.connect()
 
@@ -152,10 +148,12 @@ def main():
                 pos, piece = board.get_row_col_and_piece(
                     mouse_x, mouse_y, game)
 
+                print(pos.x, pos.y)
+
                 clicked_pos = copy.deepcopy(pos)
 
                 if piece != None:
-                    if globals.IS_WHITES_TURN == piece.isupper():
+                    if globals.IS_WHITES_TURN == piece.isupper() and piece.isupper() == globals.ASSIGNED_COLOR:
                         if drag == False:
                             drag_pos = pos
                             piece_img = board.get_image(piece)
@@ -175,27 +173,24 @@ def main():
                     new_pos, drop_piece = board.get_row_col_and_piece(
                         mouse_x, mouse_y, game)
 
+                    print("new_pos", new_pos.x, new_pos.y)
+                    
+
                     if old_pos != new_pos and new_pos in valid_moves:
                         if drop_piece == None or isinstance(drop_piece, str) and \
                                 not (piece.isupper() == drop_piece.isupper()):
                             valid_moves = []
-                            WHITE_CHECK = False
-                            BLACK_CHECK = False
-                            xd(piece, old_pos, new_pos)
-
-                            if game.is_white_in_check():
-                                WHITE_CHECK = True
-                                print("white check")
-                            if game.is_black_in_check():
-                                BLACK_CHECK = True
-                                print("black check")
+                            globals.WHITE_CHECK = False
+                            globals.BLACK_CHECK = False
+                            update_game(piece, old_pos, new_pos)
 
         surface.fill((0, 0, 0))
         board.draw()
 
-        if WHITE_CHECK:
+
+        if globals.WHITE_CHECK:
                 board.show_check(game, is_white=True)
-        elif BLACK_CHECK:
+        elif globals.BLACK_CHECK:
                 board.show_check(game, is_white=False)
 
         board.show_pieces(game, drag_pos)

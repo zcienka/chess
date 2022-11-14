@@ -115,3 +115,12 @@ class King:
 
     def set_is_short_castle_possible(self, is_possible):
         self.is_short_castle_possible = is_possible
+
+    def get_is_short_castle_possible(self):
+        return  self.is_short_castle_possible
+    
+    def get_is_long_castle_possible(self):
+        return self.is_long_castle_possible
+
+    def set_pos(self, pos):
+        self.position = pos

@@ -7,6 +7,7 @@ import copy
 import threading
 from connection import Connection
 import sys
+from popup_window import PopupWindow
 
 surface = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
 
@@ -121,6 +122,8 @@ def main():
 
     receive_thread = threading.Thread(target=connection.receive)
     receive_thread.start()
+
+    # PopupWindow.display_server_disconnected()
 
     while True:
         for event in pygame.event.get():

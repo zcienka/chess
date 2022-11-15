@@ -2,6 +2,7 @@ from constants import *
 import socket
 import os
 import globals
+from popup_window import PopupWindow
 
 class Connection:
       def __init__(self, host, port, board, game):
@@ -41,8 +42,9 @@ class Connection:
 
 
             except socket.error as e:
+               
                print(e)
-               os._exit(1)
+               # os._exit(1)
                
 
       def send(self, data):
@@ -61,8 +63,9 @@ class Connection:
             globals.ASSIGNED_COLOR = int(color.decode())
             print("color: ", color.decode())
          except socket.error as e:
-            print(e)
-            os._exit(1)
+            PopupWindow.display_server_not_connected()
+            # print(e)
+            # os._exit(1)
 
       def is_command(self, request):
          return request in [DISCONNECT_OPPONENT, SERVER_DISCONNECTED]
@@ -72,6 +75,6 @@ class Connection:
             pass
          elif command == SERVER_DISCONNECTED:
             os._exit(1)
-         elif command == ASSIGN_COLOR:
+         elif command == WAITING_FOR_USER:
             pass
-            # ASSIGNED_COLOR
+

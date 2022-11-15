@@ -13,8 +13,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-// typedef enum { false, true } bool;
-
 char *ASSIGN_COLOR = "ASSIGN_COLOR";
 
 struct cln
@@ -25,7 +23,7 @@ struct cln
 
 struct User
 {
-	int gameId;
+	// int gameId;
 	int cfd;
 	int color;
 	bool isConnected;
@@ -35,109 +33,75 @@ typedef struct
 {
 	int id;
 	struct User users[2];
+	int userIdturn;
 } Game;
 
 const int MAX_USERS = 6;
+const int MAX_GAMES = MAX_USERS / 2;
 int users_num = 0;
-int turn = 0;
 Game *games;
 
-void *cthread(void *arg)
+void *test(int client_socket)
 {
-	struct cln *c = (struct cln *)arg;
-	// struct User currUser;
-	// currUser.gameId = 0;
-	// currUser.cfd = c->cfd;
+	int currentGameId, currentUserId;
+	struct User currentUser;
 
-	games[0].users[users_num % 2].cfd = c->cfd;
-
-	printf("currUser.cfd %d\n", games[0].users[users_num % 2].cfd);
-
-	printf("New connection: %s\n", inet_ntoa((struct in_addr)c->caddr.sin_addr));
-
-	while (1)
+	for (int i = 0; i < MAX_GAMES; i++)
 	{
-		char query[129];
-
-		int userRequest = 0;
-		memset(query, 0, strlen(query));
-		// query[0] = '\0';
-		// strcpy(query, "");
-
-		// for (int i = 0; i < 2; i++)
-		// {
-		// if (games[0].users[0].isConnected && games[0].users[1].isConnected)
-		// {
-		// 	printf("xd\n");
-		// 	userRequest = 0;
-
-		// 	userRequest = read(games[0].users[turn].cfd, query, 128);
-		// 	// if (userRequest != 0)
-		// 	// {
-		// 	// break;
-		// 	// }
-		// }
-		// else
-		// {
-		userRequest = 0;
-		// userRequest = read(games[0].users[users_num].cfd, query, 128);
-		if (games[0].users[0].isConnected && games[0].users[1].isConnected)
+		for (int j = 0; j < 2; j++)
 		{
-			userRequest = recv(games[0].users[turn].cfd, query, 128, 0);
-		}
-		else
-		{
-			userRequest = recv(games[0].users[users_num % 2].cfd, query, 128, 0);
-		}
-
-		if (userRequest != 0)
-		{
-			printf("query %s \n\n", query);
-
-			if (strcmp(query, ASSIGN_COLOR) == 0)
+			if (games[i].users[j].cfd == client_socket)
 			{
-				int color = games[0].users[users_num % 2].color;
-
-				if (color == 1)
-				{
-					turn = users_num % 2;
-				}
-
-				char colorStr[2];
-				memset(colorStr, 0, strlen(colorStr));
-				sprintf(colorStr, "%d", color);
-				printf("games[0].users[(users_num ) 2].color: %d \n", games[0].users[users_num % 2].color);
-
-				// send(games[0].users[users_num - 1].cfd ,	colorStr, strlen(colorStr), 0);
-				send(games[0].users[users_num % 2].cfd, colorStr, strlen(colorStr), 0);
-				games[0].users[users_num % 2].isConnected = true;
-				users_num++;
-			}
-			else if (strcmp(query, "") != 0 && games[0].users[0].isConnected && games[0].users[1].isConnected)
-			{
-				printf("query %s\n\n", query);
-
-				if (turn == 0)
-				{
-					turn = 1;
-				}
-				else if (turn == 1)
-				{
-					turn = 0;
-				}
-
-				send(games[0].users[turn].cfd, query, strlen(query), 0);
+				currentGameId = i;
+				currentUser = games[i].users[j];
+				currentUserId = j;
+				break;
 			}
 		}
 	}
-	close(c->cfd);
-	free(c);
-	return EXIT_SUCCESS;
+
+	char query[128];
+	memset(query, 0, strlen(query));
+
+	int userRequest = recv(client_socket, query, 128, 0);
+
+	// if (userRequest != 0)
+	// {
+
+	if (!currentUser.isConnected && strcmp(query, ASSIGN_COLOR) == 0)
+	{
+		char colorStr[2];
+		int color = games[currentGameId].users[currentUserId].color;
+
+		memset(colorStr, 0, strlen(colorStr));
+		sprintf(colorStr, "%d", color);
+
+		send(client_socket, colorStr, strlen(colorStr), 0);
+		games[currentGameId].users[currentUserId].isConnected = true;
+	}
+	else if ( games[currentGameId].users[0].isConnected && games[currentGameId].users[1].isConnected)
+	{
+		// recv(client_socket, query, 128, 0);
+		printf("query %s\n\n", query);
+		int turn = games[currentGameId].userIdturn;
+
+		send(games[currentGameId].users[turn].cfd, query, strlen(query), 0);
+
+		if (turn == 0)
+		{
+			games[currentGameId].userIdturn = 1;
+		}
+		else if (turn == 1)
+		{
+			games[currentGameId].userIdturn = 0;
+		}
+		// }
+	}
 }
 
 int main(int argc, char *argv[])
 {
-	games = (Game *)malloc(sizeof(Game) * MAX_USERS);
+	games = (Game *)malloc(sizeof(Game) * MAX_GAMES);
 
 	pthread_t tid;
 	socklen_t slt;
@@ -151,21 +115,35 @@ int main(int argc, char *argv[])
 	sfd = socket(AF_INET, SOCK_STREAM, 0);
 	setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
 	bind(sfd, (struct sockaddr *)&saddr, sizeof(saddr));
-	listen(sfd, MAX_USERS);
+	listen(sfd, MAX_GAMES);
+
+	fd_set mask, rmask;
+
+	FD_ZERO(&mask);
+	FD_SET(sfd, &mask);
+
 	srand(time(NULL));
 
-	for (int i = 0; i < MAX_USERS; i++)
+	for (int i = 0; i < MAX_GAMES; i++)
 	{
 		Game game;
-		game.id = i;
 		int color1 = rand() % 2;
 		// int color1 = 0;
 
 		game.users[0].color = color1;
 		game.users[1].color = (color1 + 1) % 2;
 
-		games[i].users[0].isConnected = false;
-		games[i].users[1].isConnected = false;
+		game.users[0].isConnected = false;
+		game.users[1].isConnected = false;
+
+		if (game.users[0].color)
+		{
+			game.userIdturn = 0;
+		}
+		else
+		{
+			game.userIdturn = 1;
+		}
 
 		games[i] = game;
 	}
@@ -174,13 +152,75 @@ int main(int argc, char *argv[])
 	// 	printf("color %d game.users[0].color: %d, game.users[1].color: %d\n\n", i, games[i].users[0].color, games[i].users[1].color);
 	// }
 
+	for (int i = 0; i < MAX_GAMES; i++)
+	{
+		printf("games[i].isConnected %d\n", games[i].users[0].isConnected);
+	}
+
 	for (;;)
 	{
-		struct cln *c = malloc(sizeof(struct cln));
-		slt = sizeof(c->caddr);
-		c->cfd = accept(sfd, (struct sockaddr *)&c->caddr, &slt);
-		pthread_create(&tid, NULL, cthread, c);
-		pthread_detach(tid);
+		rmask = mask;
+		if (select(FD_SETSIZE, &rmask, NULL, NULL, NULL) < 0)
+		{
+			perror("select error");
+		}
+
+		for (int i = 0; i < FD_SETSIZE; i++)
+		{
+			if (FD_ISSET(i, &rmask))
+			{
+				if (i == sfd)
+				{
+					struct cln *c = malloc(sizeof(struct cln));
+					slt = sizeof(c->caddr);
+					c->cfd = accept(sfd, (struct sockaddr *)&c->caddr, &slt);
+					int availableId = -1;
+
+					for (int i = 0; i < MAX_GAMES; i++)
+					{
+						if (games[i].users[0].isConnected == true && games[i].users[1].isConnected == false)
+						{
+							availableId = i;
+							// games[i].users[1].isConnected = true;
+							printf("availableId: asdadsdas%d\n", availableId);
+							printf("games[i].users[0].isConnected %d\n", games[i].users[0].isConnected);
+							games[i].users[1].cfd = c->cfd;
+							// games[i].users[1].isConnected = true;
+							// games[i].users[1].gameId = i
+							break;
+						}
+					}
+
+					if (availableId == -1)
+					{
+						for (int i = 0; i < MAX_GAMES; i++)
+						{
+							if (games[i].users[0].isConnected == false && games[i].users[0].isConnected == false)
+							{
+								availableId = i;
+								printf("availableId: %d\n", availableId);
+								games[i].users[0].cfd = c->cfd;
+								// games[i].users[0].isConnected = true;
+
+								break;
+							}
+						}
+					}
+
+					if (availableId != -1)
+					{
+						FD_SET(c->cfd, &mask);
+					}
+				}
+				else
+				{
+					test(i);
+					FD_CLR(i, &mask);
+				}
+			}
+		}
+
+
 	}
 
 	close(sfd);

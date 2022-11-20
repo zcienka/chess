@@ -19,9 +19,11 @@ game = Game()
 chess_board = board.get_board_from_fen_sequence(game, initial_run=True)
 game.set_board(chess_board)
 
+popupWindow = PopupWindow(surface)
+
 host = "192.168.134.128"
 port = 5050
-connection = Connection(host, port, board, game)
+connection = Connection(host, port, board, game, popupWindow)
 
 
 def update_game(piece, old_pos, new_pos):
@@ -35,11 +37,8 @@ def update_game(piece, old_pos, new_pos):
 
     if game.is_pawn(piece):
         if game.is_pawn_double_move(old_pos, new_pos):
-            print("pawn double move")
             game.set_pawn_double_push(new_pos)
             is_double_pawn_move = True
-        else:
-            print("not double move")
 
         opponent_pawn_pos = game.get_opponent_pawn_position()
 
@@ -123,8 +122,6 @@ def main():
     receive_thread = threading.Thread(target=connection.receive)
     receive_thread.start()
 
-    # PopupWindow.display_server_disconnected()
-
     while True:
         for event in pygame.event.get():
             # if not drag:
@@ -206,7 +203,14 @@ def main():
             y = mouse[1] - piece_img.get_width() / 2
             surface.blit(piece_img, tuple([x, y]))
 
-        pygame.display.update()
+        # if globals.OPPONENT_NOT_CONNECTED_YET:
+            # popupWindow.display()
+                            # if not globals.OPPONENT_NOT_CONNECTED_YET:
+            # print("IS_OPPONENT_CONNECTED")
+        
+
+
+        pygame.display.update() 
 
         clock.tick(FPS)
 

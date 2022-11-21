@@ -57,7 +57,7 @@ class PopupWindow:
             if id == 0:
                 os._exit(1)
 
-    def display_checkmate(self, game, clicked_pos=None):
+    def display_checkmate(self, connection, clicked_pos=None):
         top_text = "Game over"
 
         if globals.WHITE_CHECK:
@@ -72,15 +72,19 @@ class PopupWindow:
             id = self.get_button_clicked_id(clicked_pos, button_names, text)
 
             if id == 1:
-                os._exit(1)
+                connection.disconnect()
+                os._exit(0)
             elif id == 0:
-                game.rematch()
+                globals.CURRENT_USER_WANTS_REMATCH = True
+                connection.send(REMATCH)
 
-    def display_draw(self, game, connection, clicked_pos=None):
+    def display_draw(self, connection, clicked_pos=None):
         top_text = "Draw"
-        text = [""]
+
         if globals.IS_STALEMATE:
-            text = ["Game ends because of a stalemate."]
+            text = ["Game ends because", "of a stalemate."]
+        if globals.IS_THREEFOLD_REPETITION:
+            text = ["Game ends because of a", "threefold repetition"]
 
         button_names = ["Rematch", "Exit"]
         self.display(top_text, text, button_names, color=BLUE)
@@ -89,14 +93,18 @@ class PopupWindow:
             id = self.get_button_clicked_id(clicked_pos, button_names, text)
 
             if id == 1:
-                os._exit(1)
+                connection.disconnect()
+                os._exit(0)
             elif id == 0:
+                globals.CURRENT_USER_WANTS_REMATCH = True
                 connection.send(REMATCH)
-                if globals.OPPONENT_WANTS_REMATCH:
-                    game.rematch()
 
-    def display_opponent_disconnected(self, clicked_pos=None):
-        top_text = "You won!"
+    def display_opponent_disconnected(self, connection, clicked_pos=None):
+        top_text = ""
+
+        if not globals.IS_CHECKMATE and not globals.IS_DRAW:
+            top_text = "You won!"
+
         text = ["Opponent has disconnected"]
         button_names = ["Exit"]
         self.display(top_text, text, button_names, color=BLUE)
@@ -105,7 +113,22 @@ class PopupWindow:
             id = self.get_button_clicked_id(clicked_pos, button_names, text)
 
             if id == 0:
-                os._exit(1)
+                connection.disconnect()
+                os._exit(0)
+
+    def display_no_rooms_left(self, connection, clicked_pos=None):
+        top_text = "Error"
+
+        text = ["No rooms left"]
+        button_names = ["Exit"]
+        self.display(top_text, text, button_names, color=RED)
+
+        if clicked_pos != None:
+            id = self.get_button_clicked_id(clicked_pos, button_names, text)
+
+            if id == 0:
+                connection.disconnect()
+                os._exit(0)
 
     def display(self, window_upper_text, message_lst, button_names, color):
         popup_window_size = Position(320, 240)

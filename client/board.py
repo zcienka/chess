@@ -15,6 +15,9 @@ class Board:
         self.rectangle_size = 100
         self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
+        a = pygame.image.load("imgs/w_P.png")
+        pygame.display.set_icon(a)
+
 
     def draw(self):
         for i in range(BOARD_SIZE):
@@ -100,13 +103,12 @@ class Board:
     def get_board_from_fen_sequence(self, game, initial_run=False):
         sequence_by_rows = self.fen_sequence.split("/")
         board = []
-        print("sequence_by_rows", sequence_by_rows)
         break_loop = False
 
         for r in range(len(sequence_by_rows)):
             row = []
             col = 0
-            for j, piece in enumerate(sequence_by_rows[r]):
+            for piece in sequence_by_rows[r]:
                 if piece == ' ':
                     break_loop = True
                     break
@@ -134,23 +136,26 @@ class Board:
                 break
 
         parts = self.fen_sequence.split(" ")
+        castling_part = ""
 
         if len(parts) > 1:
             castling_part = parts[1]
 
-            if "K" not in castling_part:
-                game.set_short_castle_possible(False, white_king=True)
-            elif "Q" not in castling_part:
-                game.set_long_castle_possible(False, white_king=True)
-            elif "k" not in castling_part:
-                game.set_long_castle_possible(False, black_king=True)
-            elif "q" not in castling_part:
-                game.set_long_castle_possible(False, black_king=True)
+        if "K" not in castling_part:
+            game.set_short_castle_possible(False, white_king=True)
+        if "Q" not in castling_part:
+            game.set_long_castle_possible(False, white_king=True)
+        if "k" not in castling_part:
+            game.set_short_castle_possible(False, black_king=True)
+        if "q" not in castling_part:
+            game.set_long_castle_possible(False, black_king=True)
 
-            if len(parts) == 3:
-                en_passant_move = self.chessboard_pos_to_board_coordinates(
-                    parts[2])
-                game.set_pawn_double_push(en_passant_move)
+        # !!!!!!!!!!!!!!!!!!!!
+        if len(parts) == 3 or (castling_part == "" and len(parts) == 2):
+            en_passant_move = self.chessboard_pos_to_board_coordinates(
+                parts[2])
+            # print("EN PASSANT MOVE !!!!!!!!!!!\n\n\n", en_passant_move)
+            game.set_pawn_double_push(en_passant_move)
 
         return board
 
@@ -178,21 +183,19 @@ class Board:
 
         fen_sequence += " "
 
-        if white_king.get_is_long_castle_possible() and white_king.get_is_short_castle_possible():
-            fen_sequence += "KQ"
-        elif white_king.get_is_long_castle_possible():
-            fen_sequence += "Q"
-        elif white_king.get_is_short_castle_possible():
+        if white_king.get_is_short_castle_possible():
             fen_sequence += "K"
+        if white_king.get_is_long_castle_possible():
+            fen_sequence += "Q"
+
 
         black_king = game.get_black_king()
 
-        if black_king.get_is_long_castle_possible() and black_king.get_is_short_castle_possible():
-            fen_sequence += "kq"
-        elif black_king.get_is_long_castle_possible():
-            fen_sequence += "q"
-        elif black_king.get_is_short_castle_possible():
+        if black_king.get_is_short_castle_possible():
             fen_sequence += "k"
+        if black_king.get_is_long_castle_possible():
+            fen_sequence += "q"
+
 
         if en_passant_move != None:
             fen_sequence += " " + \

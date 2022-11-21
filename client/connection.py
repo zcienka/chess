@@ -13,19 +13,23 @@ class Connection:
         self.popupWindow = popupWindow
 
     def receive(self):
-        while True:
+        while not globals.SERVER_ERROR:
             try:
                 response = self.client.recv(128)
                 decoded_response = response.decode().strip()
                 print("decoded_response: ", decoded_response)
 
-                if self.is_command(decoded_response):
+                if decoded_response == "":
+                    globals.SERVER_ERROR = True
+
+                elif self.is_command(decoded_response):
                     self.check_command(decoded_response)
 
                 else:
                     globals.OPPONENT_NOT_CONNECTED_YET = False
 
                     globals.FEN_SEQUENCE = decoded_response
+                    self.game.add_move_to_all_moves(globals.FEN_SEQUENCE)
                     self.board.set_fen_sequence(globals.FEN_SEQUENCE)
                     board = self.board.get_board_from_fen_sequence(
                         self.game)
@@ -34,49 +38,56 @@ class Connection:
 
                     globals.WHITE_CHECK = False
                     globals.BLACK_CHECK = False
-
-                    if self.game.is_white_in_check():
-                        globals.WHITE_CHECK = True
-                    if self.game.is_black_in_check():
-                        globals.BLACK_CHECK = True
+                    
+                    self.game.check_for_game_over()
 
                     globals.IS_WHITES_TURN = not globals.IS_WHITES_TURN
-            except:
+            except socket.error as e:
+                print(e)
                 globals.SERVER_ERROR = True
-
 
     def send(self, data):
         try:
-            # data = data + "\n"
-            print("data ", data)
             self.client.send(str.encode(data))
-        except:
+        except socket.error as e:
+            print(e)
             globals.SERVER_ERROR = True
 
     def connect(self):
         try:
             self.client.connect((self.host, self.port))
-            self.send(ASSIGN_COLOR)
-            color = self.client.recv(128)
-            globals.ASSIGNED_COLOR = int(color.decode())
 
-            self.send(IS_OPPONENT_CONNECTED)
-            response = self.client.recv(128).decode()
+            self.send(CAN_USER_CONNECT)
+            response = self.client.recv(128)
+            can_connect = bool(int(response.decode()))
 
-            if response == OPPONENT_CONNECTED:
-                globals.OPPONENT_NOT_CONNECTED_YET = False
-        except:
+            if can_connect:
+                self.send(ASSIGN_COLOR)
+                color = self.client.recv(128)
+                globals.ASSIGNED_COLOR = int(color.decode())
+
+                self.send(IS_OPPONENT_CONNECTED)
+                response = self.client.recv(128).decode()
+
+                if response == OPPONENT_CONNECTED:
+                    globals.OPPONENT_NOT_CONNECTED_YET = False
+            else:
+                globals.NO_ROOMS_LEFT = True
+ 
+        except socket.error as e:
+            print(e)
             globals.SERVER_ERROR = True
 
     def is_command(self, response):
-        return response in [OPPONENT_DISCONNECTED, OPPONENT_CONNECTED]
+        return response in [OPPONENT_DISCONNECTED, OPPONENT_CONNECTED, REMATCH]
 
     def check_command(self, command):
         if command == OPPONENT_DISCONNECTED:
             globals.OPPONENT_DISCONNECTED = True
-            print("opponent disconnected")
         elif command == OPPONENT_CONNECTED:
             globals.OPPONENT_NOT_CONNECTED_YET = False
+        elif command == REMATCH:
+            globals.OPPONENT_WANTS_REMATCH = True
 
     def disconnect(self):
         self.send(DISCONNECT_USER)

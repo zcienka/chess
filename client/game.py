@@ -5,6 +5,7 @@ from collections import defaultdict
 from position import Position
 from pawns import Pawns
 import globals
+from itertools import islice
 
 
 class Game:
@@ -24,6 +25,7 @@ class Game:
 
         self.white_pawns = Pawns(is_white=True)
         self.black_pawns = Pawns(is_white=False)
+        self.all_moves = []
 
     def get_valid_moves(self, square):
         square_x = square.x
@@ -89,34 +91,24 @@ class Game:
 
     def check_collision_with_king_moves(self, is_white):
         if is_white:
-            for move in self.black_king.valid_moves:
-                board_copy = copy.deepcopy(self.board)
-                x = move.x
-                y = move.y
-
-                black_king = copy.deepcopy(self.black_king)
-                black_king.position = move
-                board_copy[x][y] = self.black_king.piece
-                prev_pos = self.black_king.position
-                board_copy[prev_pos.x][prev_pos.y] = None
-
-                if self.is_own_king_in_check(board_copy, black_king):
-                    self.black_king.valid_moves.remove(move)
+            king = self.black_king
         else:
-            for move in self.white_king.valid_moves:
-                board_copy = copy.deepcopy(self.board)
-                x = move.x
-                y = move.y
+            king = self.white_king
 
-                white_king = copy.deepcopy(self.white_king)
-                white_king.position = move
+        for move in king.valid_moves:
+            board_copy = copy.deepcopy(self.board)
+            x = move.x
+            y = move.y
 
-                board_copy[x][y] = self.white_king.piece
-                prev_pos = self.white_king.position
-                board_copy[prev_pos.x][prev_pos.y] = None
+            king_copy = copy.deepcopy(king)
+            king_copy.position = move
+            board_copy[x][y] = king.piece
+            prev_pos = king.position
+            board_copy[prev_pos.x][prev_pos.y] = None
 
-                if self.is_own_king_in_check(board_copy, white_king):
-                    self.white_king.valid_moves.remove(move)
+            if self.is_own_king_in_check(board_copy, king_copy):
+                king.valid_moves.remove(move)
+
 
     def get_initial_king_moves(self, pos):
         square_x = pos.x
@@ -274,7 +266,17 @@ class Game:
         return False
 
     def is_checkmate(self):
-        if self.white_king.check and not self.white_king.valid_moves == []:
+        # print("valid moves")
+
+        # for abcd in self.white_king.valid_moves:
+        #     print(abcd.x, abcd.y)
+
+        # print(self.white_king.valid_moves)
+        # print("check")
+        # print(self.white_king.check)
+        # print(self.are_valid_moves_left(white=True))
+
+        if self.white_king.check and self.white_king.valid_moves == []:
             return not self.are_valid_moves_left(white=True)
 
         if self.black_king.check and self.black_king.valid_moves == []:
@@ -311,6 +313,10 @@ class Game:
                                 valid_moves = self.white_king.valid_moves
                             else:
                                 valid_moves = self.black_king.valid_moves
+                            
+                        # print("valid_moves")
+                        # for xd in valid_moves:
+                            # print(xd.x, xd.y)
 
                         if len(valid_moves) != 0:
                             return True
@@ -510,8 +516,7 @@ class Game:
         elif black_king:
             self.black_king.set_is_long_castle_possible(is_possible)
 
-
-    def rematch(self):
+    def rematch(self, board):
         globals.IS_WHITES_TURN = True
         globals.FEN_SEQUENCE = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR KQkq"
         globals.ASSIGNED_COLOR = (globals.ASSIGNED_COLOR + 1) % 2
@@ -521,9 +526,49 @@ class Game:
         globals.IS_STALEMATE = False
         globals.IS_DRAW = False
         globals.OPPONENT_WANTS_REMATCH = False
+        globals.IS_THREEFOLD_REPETITION = False
+        globals.CURRENT_USER_WANTS_REMATCH = False
 
         self.white_king = King("K")
         self.black_king = King("k")
         self.white_pawns = Pawns(is_white=True)
         self.black_pawns = Pawns(is_white=False)
+        self.clear_moves()
+
+        board.set_fen_sequence(globals.FEN_SEQUENCE)
+        self.board = board.get_board_from_fen_sequence(self,  initial_run=True)
+        board.show_pieces(self, initial_run=True)
+
+    def is_threefold_repetition(self):
+        if len(self.all_moves) >= 3:
+            my_dict = {i: self.all_moves.count(i) for i in self.all_moves}
+            sorted_dict = sorted(
+                my_dict.items(), key=lambda x: x[1], reverse=True)
+            return sorted_dict[0][1] == 3
+
+        return False
+
+    def add_move_to_all_moves(self, move):
+        self.all_moves.append(move)
+
+    def clear_moves(self):
+        self.all_moves.clear()
+
+    def check_for_game_over(self):
+        if self.is_white_in_check():
+            globals.WHITE_CHECK = True
+        if self.is_black_in_check():
+            globals.BLACK_CHECK = True
+
+        if self.is_threefold_repetition():
+            globals.IS_THREEFOLD_REPETITION = True
+            globals.IS_DRAW = True
+
+        if self.is_checkmate():
+            print("!!!!!!!!!!!!!!!!!!CHECKMATE!!!!!!!!!!!!!!!!!!!!!")
+            globals.IS_CHECKMATE = True
+
+        if self.is_stalemate():
+            globals.IS_STALEMATE = True
+            globals.IS_DRAW = True
 

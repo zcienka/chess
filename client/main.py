@@ -52,11 +52,6 @@ def update_game(piece, old_pos, new_pos):
         if game.is_en_passant_move(new_pos, opponent_pawn_pos):
             game.update(opponent_pawn_pos, None)
 
-    if is_double_pawn_move:
-        board.convert_board_to_fen_sequence(game, new_pos)
-    else:
-        board.convert_board_to_fen_sequence(game)
-
     if game.is_rook(piece):
         game.set_rook_has_moved(old_pos)
 
@@ -69,49 +64,56 @@ def update_game(piece, old_pos, new_pos):
 
     board.set_king_valid_moves(game)
 
+    if is_double_pawn_move:
+        board.convert_board_to_fen_sequence(game, new_pos)
+    else:
+        board.convert_board_to_fen_sequence(game)
+
     game.clear_opponent_double_push()
 
     globals.IS_WHITES_TURN = not globals.IS_WHITES_TURN
 
     fen_sequence = board.get_fen_sequence()
+    game.add_move_to_all_moves(fen_sequence)
+    
+    game.check_for_game_over()
+
     connection.send(fen_sequence)
 
-    if game.is_white_in_check():
-        globals.WHITE_CHECK = True
-    elif game.is_black_in_check():
-        globals.BLACK_CHECK = True
-
-    if game.is_checkmate():
-        globals.IS_CHECKMATE = True
-
-    if game.is_stalemate():
-        globals.IS_STALEMATE = True
 
 
 def display_popups(is_click, mouse_x, mouse_y):
-    if globals.SERVER_ERROR:
+    if globals.NO_ROOMS_LEFT:
+        if is_click:
+            popupWindow.display_no_rooms_left(
+                connection, Position(mouse_x, mouse_y))
+        else:
+            popupWindow.display_no_rooms_left(connection)
+    elif globals.SERVER_ERROR:
         if is_click:
             popupWindow.display_server_disconnected(Position(mouse_x, mouse_y))
         else:
             popupWindow.display_server_disconnected()
     elif globals.OPPONENT_DISCONNECTED:
         if is_click:
-            popupWindow.display_opponent_disconnected(Position(mouse_x, mouse_y))
+            popupWindow.display_opponent_disconnected(connection,
+                Position(mouse_x, mouse_y))
         else:
-            popupWindow.display_opponent_disconnected()
+            popupWindow.display_opponent_disconnected(connection)
     elif globals.IS_CHECKMATE:
         if is_click:
-            popupWindow.display_checkmate(Position(mouse_x, mouse_y))
+            popupWindow.display_checkmate(
+                connection, Position(mouse_x, mouse_y))
         else:
-            popupWindow.display_checkmate()
+            popupWindow.display_checkmate(connection)
     elif globals.IS_DRAW:
         if is_click:
-            popupWindow.display_draw(Position(mouse_x, mouse_y))
+            popupWindow.display_draw(
+                connection, Position(mouse_x, mouse_y))
         else:
-            popupWindow.display_draw()
+            popupWindow.display_draw(connection)
     elif globals.OPPONENT_NOT_CONNECTED_YET:
         popupWindow.display_waiting_for_opponent()
-
 
 
 def main():
@@ -139,11 +141,11 @@ def main():
     is_click = False
 
     mouse_x = None
-    mouse_y  = None
+    mouse_y = None
 
     connection.connect()
 
-    if not globals.SERVER_ERROR:
+    if not globals.SERVER_ERROR and not globals.NO_ROOMS_LEFT:
         receive_thread = threading.Thread(target=connection.receive)
         receive_thread.start()
 
@@ -179,8 +181,10 @@ def main():
 
                 if piece != None:
                     if globals.IS_WHITES_TURN == piece.isupper() \
-                        and piece.isupper() == globals.ASSIGNED_COLOR \
-                            and not globals.SERVER_ERROR:
+                            and piece.isupper() == globals.ASSIGNED_COLOR \
+                        and not globals.SERVER_ERROR \
+                            and not globals.IS_CHECKMATE \
+                            and not globals.IS_DRAW:
                         if drag == False:
                             drag_pos = pos
                             piece_img = board.get_image(piece)
@@ -228,6 +232,9 @@ def main():
 
         display_popups(is_click, mouse_x, mouse_y)
         is_click = False
+
+        if globals.CURRENT_USER_WANTS_REMATCH and globals.OPPONENT_WANTS_REMATCH and not globals.OPPONENT_DISCONNECTED:
+            game.rematch(board)
 
         pygame.display.update()
 

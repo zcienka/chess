@@ -75,12 +75,16 @@ class King:
         if globals.IS_WHITES_TURN:
             if pos == self.left_rook_pos:
                 self.has_left_rook_moved = True
+                self.is_long_castle_possible = False
         else:
             if pos == self.right_rook_pos:
                 self.has_right_rook_moved = True
+                self.is_right_castle_possible = False
 
     def set_has_moved(self):
         self.has_moved = True
+        self.is_long_castle_possible = False
+        self.is_short_castle_possible = False
 
     def get_short_castle_pos(self):
         return self.perform_short_castle_pos
@@ -113,8 +117,8 @@ class King:
         self.is_short_castle_possible = is_possible
 
     def get_is_short_castle_possible(self):
-        return  self.is_short_castle_possible
-    
+        return self.is_short_castle_possible
+
     def get_is_long_castle_possible(self):
         return self.is_long_castle_possible
 

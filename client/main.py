@@ -6,18 +6,19 @@ import globals
 import copy
 import threading
 from connection import Connection
-import sys
 from popup_window import PopupWindow
+from position import Position
+import os
 
 surface = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
 
-globals.FEN_SEQUENCE = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR KQkq"
 board = Board(surface, globals.FEN_SEQUENCE)
 
 board.draw()
 game = Game()
 chess_board = board.get_board_from_fen_sequence(game, initial_run=True)
 game.set_board(chess_board)
+pygame.init()
 
 popupWindow = PopupWindow(surface)
 
@@ -77,25 +78,45 @@ def update_game(piece, old_pos, new_pos):
 
     if game.is_white_in_check():
         globals.WHITE_CHECK = True
-        print("white check")
-    if game.is_black_in_check():
+    elif game.is_black_in_check():
         globals.BLACK_CHECK = True
-        print("black check")
-
 
     if game.is_checkmate():
-        print("checkmate")
+        globals.IS_CHECKMATE = True
 
     if game.is_stalemate():
-        print("stalemate")
+        globals.IS_STALEMATE = True
 
+
+def display_popups(is_click, mouse_x, mouse_y):
+    if globals.SERVER_ERROR:
+        if is_click:
+            popupWindow.display_server_disconnected(Position(mouse_x, mouse_y))
+        else:
+            popupWindow.display_server_disconnected()
+    elif globals.OPPONENT_DISCONNECTED:
+        if is_click:
+            popupWindow.display_opponent_disconnected(Position(mouse_x, mouse_y))
+        else:
+            popupWindow.display_opponent_disconnected()
+    elif globals.IS_CHECKMATE:
+        if is_click:
+            popupWindow.display_checkmate(Position(mouse_x, mouse_y))
+        else:
+            popupWindow.display_checkmate()
+    elif globals.IS_DRAW:
+        if is_click:
+            popupWindow.display_draw(Position(mouse_x, mouse_y))
+        else:
+            popupWindow.display_draw()
+    elif globals.OPPONENT_NOT_CONNECTED_YET:
+        popupWindow.display_waiting_for_opponent()
 
 
 
 def main():
-    pygame.init()
     pygame.display.set_caption("Chess")
-    FPS = 60
+    MAX_FPS = 60
 
     pygame.display.flip()
     pygame.display.update()
@@ -114,27 +135,32 @@ def main():
     piece_img = None
     pos = None
     drag = False
-    checkmate = False
     valid_moves = []
+    is_click = False
+
+    mouse_x = None
+    mouse_y  = None
 
     connection.connect()
 
-    receive_thread = threading.Thread(target=connection.receive)
-    receive_thread.start()
+    if not globals.SERVER_ERROR:
+        receive_thread = threading.Thread(target=connection.receive)
+        receive_thread.start()
 
     while True:
         for event in pygame.event.get():
-            # if not drag:
-                #   board.set_fen_sequence(globals.FEN_SEQUENCE)
-
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
-                    sys.exit()
+                    connection.disconnect()
+                    os._exit(0)
+
             elif event.type == pygame.QUIT:
                 pygame.quit()
-                sys.exit()
-            elif event.type == pygame.MOUSEMOTION:
+                connection.disconnect()
+                os._exit(0)
+
+            if event.type == pygame.MOUSEMOTION:
                 mouse = event.pos
                 mouse_x, mouse_y = mouse
                 pos, piece = board.get_row_col_and_piece(
@@ -148,12 +174,13 @@ def main():
                 pos, piece = board.get_row_col_and_piece(
                     mouse_x, mouse_y, game)
 
-                print(pos.x, pos.y)
-
                 clicked_pos = copy.deepcopy(pos)
+                is_click = True
 
                 if piece != None:
-                    if globals.IS_WHITES_TURN == piece.isupper() and piece.isupper() == globals.ASSIGNED_COLOR:
+                    if globals.IS_WHITES_TURN == piece.isupper() \
+                        and piece.isupper() == globals.ASSIGNED_COLOR \
+                            and not globals.SERVER_ERROR:
                         if drag == False:
                             drag_pos = pos
                             piece_img = board.get_image(piece)
@@ -173,9 +200,6 @@ def main():
                     new_pos, drop_piece = board.get_row_col_and_piece(
                         mouse_x, mouse_y, game)
 
-                    print("new_pos", new_pos.x, new_pos.y)
-                    
-
                     if old_pos != new_pos and new_pos in valid_moves:
                         if drop_piece == None or isinstance(drop_piece, str) and \
                                 not (piece.isupper() == drop_piece.isupper()):
@@ -184,18 +208,17 @@ def main():
                             globals.BLACK_CHECK = False
                             update_game(piece, old_pos, new_pos)
 
-        surface.fill((0, 0, 0))
+        surface.fill(BLACK)
         board.draw()
 
-
         if globals.WHITE_CHECK:
-                board.show_check(game, is_white=True)
+            board.show_check(game, is_white=True)
         elif globals.BLACK_CHECK:
-                board.show_check(game, is_white=False)
+            board.show_check(game, is_white=False)
 
         board.show_pieces(game, drag_pos)
 
-        if valid_moves != []:
+        if valid_moves != [] and not globals.SERVER_ERROR:
             board.show_valid_moves(valid_moves, game.get_board(), clicked_pos)
 
         if drag and piece_img != None:
@@ -203,16 +226,12 @@ def main():
             y = mouse[1] - piece_img.get_width() / 2
             surface.blit(piece_img, tuple([x, y]))
 
-        # if globals.OPPONENT_NOT_CONNECTED_YET:
-            # popupWindow.display()
-                            # if not globals.OPPONENT_NOT_CONNECTED_YET:
-            # print("IS_OPPONENT_CONNECTED")
-        
+        display_popups(is_click, mouse_x, mouse_y)
+        is_click = False
 
+        pygame.display.update()
 
-        pygame.display.update() 
-
-        clock.tick(FPS)
+        clock.tick(MAX_FPS)
 
 
 if __name__ == "__main__":

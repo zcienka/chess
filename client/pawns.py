@@ -60,6 +60,8 @@ class Pawns:
                 if point != None:
                     if point.isupper() != board[pos.x][pos.y].isupper():
                         valid_captures.append(capture)
+                    else:
+                        break
 
         return valid_captures
 

@@ -29,8 +29,6 @@ class King:
             self.perform_long_castle_pos = Position(BOARD_SIZE - 1, 2)
             self.left_rook_pos = Position(BOARD_SIZE - 1, 0)
             self.right_rook_pos = Position(BOARD_SIZE - 1, BOARD_SIZE - 1)
-            # self.pos_after_long_castle = Position(BOARD_SIZE - 1, 2)
-            # self.pos_after_short_castle = Position(BOARD_SIZE - 1, BOARD_SIZE - 2)
         else:
             self.long_castle_empty_squares = [Position(0, 1),
                                               Position(0, 2),
@@ -40,8 +38,6 @@ class King:
             self.perform_long_castle_pos = Position(0, 2)
             self.left_rook_pos = Position(0, 0)
             self.right_rook_pos = Position(0, BOARD_SIZE - 1)
-            # self.pos_after_long_castle = Position(0, 2)
-            # self.pos_after_short_castle = Position(0, BOARD_SIZE - 2)
 
     def can_long_castle(self, board):
         if self.has_moved or self.is_long_castle_collision or not self.is_long_castle_possible:

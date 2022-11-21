@@ -22,8 +22,6 @@ class Game:
         self.white_king = King("K")
         self.black_king = King("k")
 
-        self.initial_pawn_positions = []
-
         self.white_pawns = Pawns(is_white=True)
         self.black_pawns = Pawns(is_white=False)
 
@@ -419,8 +417,6 @@ class Game:
         else:
             opposite_king = self.black_king
 
-        # long_castle_moves = opposite_king.get_long_castle_empty_squares()
-        # short_castle_moves = opposite_king.get_short_castle_empty_squares()
         pos_after_long_castle = opposite_king.get_pos_after_long_castle()
         pos_after_short_castle = opposite_king.get_pos_after_short_castle()
 
@@ -443,14 +439,7 @@ class Game:
         self.clear_king_moves()
 
         w_moves = self.get_initial_king_moves(self.white_king.position)
-        # print("initial white king moves:", w_moves.x, w_moves.y)
-        print("self.white_king.position",
-              self.white_king.position.x,  self.white_king.position.y)
-
         b_moves = self.get_initial_king_moves(self.black_king.position)
-        # print("initial black king moves:", b_moves.x, b_moves.y)
-        print("self.black_king.position", self.black_king.position.x,
-              self.black_king.position.y)
 
         self.set_white_king_moves(w_moves)
         self.set_black_king_moves(b_moves)
@@ -520,3 +509,21 @@ class Game:
             self.white_king.set_is_long_castle_possible(is_possible)
         elif black_king:
             self.black_king.set_is_long_castle_possible(is_possible)
+
+
+    def rematch(self):
+        globals.IS_WHITES_TURN = True
+        globals.FEN_SEQUENCE = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR KQkq"
+        globals.ASSIGNED_COLOR = (globals.ASSIGNED_COLOR + 1) % 2
+        globals.WHITE_CHECK = False
+        globals.BLACK_CHECK = False
+        globals.IS_CHECKMATE = False
+        globals.IS_STALEMATE = False
+        globals.IS_DRAW = False
+        globals.OPPONENT_WANTS_REMATCH = False
+
+        self.white_king = King("K")
+        self.black_king = King("k")
+        self.white_pawns = Pawns(is_white=True)
+        self.black_pawns = Pawns(is_white=False)
+

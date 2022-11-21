@@ -12,26 +12,23 @@ class Board:
         self.width = 800
         self.height = 800
         self.surface = surface
-        self.white = (182, 182, 182)
-        self.black = (92, 92, 92)
         self.rectangle_size = 100
         self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
-        self.red = (186, 69, 69)
 
     def draw(self):
         for i in range(BOARD_SIZE):
             for j in range(BOARD_SIZE):
                 if (i + j) % 2 == 0:
                     pygame.draw.rect(self.surface,
-                                     self.white,
+                                     CHESSBOARD_WHITE,
                                      pygame.Rect(self.offset + self.rectangle_size * j,
                                                  self.offset + self.rectangle_size * i,
                                                  self.rectangle_size,
                                                  self.rectangle_size))
                 else:
                     pygame.draw.rect(self.surface,
-                                     self.black,
+                                     CHESSBOARD_BLACK,
                                      pygame.Rect(self.offset + self.rectangle_size * j,
                                                  self.offset + self.rectangle_size * i,
                                                  self.rectangle_size,
@@ -110,12 +107,10 @@ class Board:
             row = []
             col = 0
             for j, piece in enumerate(sequence_by_rows[r]):
-                # xadsdsadsad = Position(i, j)
-                # print("position piece \n\n", xadsdsadsad.x, xadsdsadsad.y, piece)
                 if piece == ' ':
                     break_loop = True
                     break
-               
+
                 if not initial_run:
                     if piece == "k" or piece == "K":
                         if piece == "k":
@@ -138,9 +133,7 @@ class Board:
             if break_loop:
                 break
 
-        print(numpy.array(board))
         parts = self.fen_sequence.split(" ")
-        print(parts)
 
         if len(parts) > 1:
             castling_part = parts[1]
@@ -182,7 +175,6 @@ class Board:
             fen_sequence += "/"
 
         white_king = game.get_white_king()
-        # game_board = game.get_board()
 
         fen_sequence += " "
 
@@ -210,24 +202,15 @@ class Board:
         globals.FEN_SEQUENCE = fen_sequence
 
     def board_coordinates_to_chessboard_pos(self, board_coordinates):
-        print("en passant move ", board_coordinates.x, board_coordinates.y)
         chessboard_col = ["a", "b", "c", "d", "e", "f", "g", "h"]
         col = chessboard_col[board_coordinates.y]
-        print("col ", col)
         row = BOARD_SIZE - int(board_coordinates.x)
-        print("row ", row)
         return str(col) + str(row)
 
     def chessboard_pos_to_board_coordinates(self, chessboard_pos):
         chessboard_col = ["a", "b", "c", "d", "e", "f", "g", "h"]
-        # col = chessboard_col[chessboard_pos.y]
-        # row = BOARD_SIZE - chessboard_pos.x
-        print("chessboard_pos[0] \n\n", chessboard_pos[0])
         col = chessboard_col.index(chessboard_pos[0])
-        print("chessboard_pos_to_board_coordinates col", col)
         row = BOARD_SIZE - int(chessboard_pos[1])
-        print("chessboard_pos_to_board_coordinates row ", row)
-        print(f"\n\n\n en passant move in list: ${row},  ${col}\n\n\n")
         return Position(row, col)
 
     def show_valid_moves(self, valid_moves, board, pos):
@@ -239,13 +222,13 @@ class Board:
 
                 if globals.ASSIGNED_COLOR == 1:
                     pygame.draw.circle(self.surface,
-                                       (64, 64, 64),
+                                       GRAY,
                                        (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
                                            self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
                                        circle_radius)
                 else:
                     pygame.draw.circle(self.surface,
-                                       (64, 64, 64),
+                                       GRAY,
                                        (self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.y) + self.rectangle_size / 2,
                                            self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.x) + self.rectangle_size / 2),
                                        circle_radius)
@@ -255,13 +238,13 @@ class Board:
 
                 if globals.ASSIGNED_COLOR == 1:
                     pygame.draw.circle(self.surface,
-                                       (64, 64, 64),
+                                       GRAY,
                                        (self.offset + self.rectangle_size * valid_move.y + self.rectangle_size / 2,
                                            self.offset + self.rectangle_size * valid_move.x + self.rectangle_size / 2),
                                        circle_radius, width=8)
                 else:
                     pygame.draw.circle(self.surface,
-                                       (64, 64, 64),
+                                       GRAY,
                                        (self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.y) + self.rectangle_size / 2,
                                            self.offset + self.rectangle_size * (BOARD_SIZE - 1 - valid_move.x) + self.rectangle_size / 2),
                                        circle_radius, width=8)
@@ -295,19 +278,19 @@ class Board:
 
         if globals.ASSIGNED_COLOR == 1:
             pygame.draw.rect(self.surface,
-                         self.red,
-                         pygame.Rect(self.offset + self.rectangle_size * y,
-                                     self.offset + self.rectangle_size * x,
-                                     self.rectangle_size,
-                                     self.rectangle_size))
+                             RED,
+                             pygame.Rect(self.offset + self.rectangle_size * y,
+                                         self.offset + self.rectangle_size * x,
+                                         self.rectangle_size,
+                                         self.rectangle_size))
         else:
             pygame.draw.rect(self.surface,
-                    self.red,
-                    pygame.Rect(self.offset + self.rectangle_size * (BOARD_SIZE - 1 - y),
-                                self.offset + self.rectangle_size * (BOARD_SIZE - 1 - x),
-                                self.rectangle_size,
-                                self.rectangle_size))
-
+                             RED,
+                             pygame.Rect(self.offset + self.rectangle_size * (BOARD_SIZE - 1 - y),
+                                         self.offset + self.rectangle_size *
+                                         (BOARD_SIZE - 1 - x),
+                                         self.rectangle_size,
+                                         self.rectangle_size))
 
     def get_fen_sequence(self):
         return self.fen_sequence

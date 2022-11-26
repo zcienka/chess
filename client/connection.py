@@ -2,7 +2,13 @@ from constants import *
 import socket
 import globals
 
-
+'''
+Class is responsible for handling the communication with the user (sending and receiving data).
+When the user connects, the request that checks if there is not already maximum amount of people
+connected to the server is being sent.
+Afterwards, the client requests for the color to be assigned and if the client is ready
+to receive messages from the server, it checks for the requests in an infinite loop.
+'''
 class Connection:
     def __init__(self, host, port, board, game, popupWindow):
         self.host = host
@@ -17,7 +23,6 @@ class Connection:
             try:
                 response = self.client.recv(128)
                 decoded_response = response.decode().strip()
-                print("decoded_response: ", decoded_response)
 
                 if decoded_response == "":
                     globals.SERVER_ERROR = True
@@ -43,14 +48,14 @@ class Connection:
 
                     globals.IS_WHITES_TURN = not globals.IS_WHITES_TURN
             except socket.error as e:
-                print(e)
+                globals.LOADING = False
                 globals.SERVER_ERROR = True
 
     def send(self, data):
         try:
             self.client.send(str.encode(data))
         except socket.error as e:
-            print(e)
+            globals.LOADING = False
             globals.SERVER_ERROR = True
 
     def connect(self):
@@ -73,9 +78,10 @@ class Connection:
                     globals.OPPONENT_NOT_CONNECTED_YET = False
             else:
                 globals.NO_ROOMS_LEFT = True
+            globals.LOADING = False
  
         except socket.error as e:
-            print(e)
+            globals.LOADING = False
             globals.SERVER_ERROR = True
 
     def is_command(self, response):

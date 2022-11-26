@@ -5,10 +5,10 @@ from collections import defaultdict
 from position import Position
 from pawns import Pawns
 import globals
-from itertools import islice
 
 
 class Game:
+    # all of the possible moves are calculated by adding the vectors to the coordinates of clicked position
     def __init__(self):
         self.possible_moves = defaultdict(list, {
             "R": [[-1, 0], [1, 0], [0, 1], [0, -1]],
@@ -27,6 +27,10 @@ class Game:
         self.black_pawns = Pawns(is_white=False)
         self.all_moves = []
 
+    # when the user changes his position all of the valid moves are calculated and the collision with king is being checked
+    # when the position of a given piece collides with the king, the valid move of a king gets deleted.
+    # for every move of a king the possibility of short castle and long castle is being checked
+    # when a move causes players own king to be in check, the move gets deleted and the piece is pinned (has no valid moves)
     def get_valid_moves(self, square):
         square_x = square.x
         square_y = square.y
@@ -79,7 +83,17 @@ class Game:
 
         self.check_collision_with_king_moves(is_white)
 
-        self.check_castling_collision(is_white, valid_moves)
+        if self.is_pawn(piece):
+            if piece.isupper():
+                capturing_moves = self.white_pawns.get_possible_capturing_moves(
+                    square, self.board)
+            else:
+                capturing_moves = self.black_pawns.get_possible_capturing_moves(
+                    square, self.board)
+
+            self.check_castling_collision(is_white, capturing_moves)
+        else:
+            self.check_castling_collision(is_white, valid_moves)
 
         if self.is_opponent_being_checked(valid_moves, piece):
             if is_white:
@@ -108,7 +122,6 @@ class Game:
 
             if self.is_own_king_in_check(board_copy, king_copy):
                 king.valid_moves.remove(move)
-
 
     def get_initial_king_moves(self, pos):
         square_x = pos.x
@@ -181,13 +194,20 @@ class Game:
                         valid_moves = self.get_knight_valid_moves(
                             piece, pos)
                     elif self.is_pawn(piece):
-                        valid_moves = self.get_pawn_valid_moves(pos)
+                        if piece.isupper():
+                            valid_moves = self.white_pawns.get_possible_capturing_moves(
+                                pos, board)
+                        else:
+                            valid_moves = self.black_pawns.get_possible_capturing_moves(
+                                pos, board)
 
                     if king.position in valid_moves and king.piece.isupper() != piece.isupper():
                         return True
 
         return False
 
+    # to calculate queen, bishop or rook valid moves, we add a given vector to a clicked position
+    # until the position reaches the end of a board or it collides with some piece
     def get_rook_queen_bishop_valid_moves(self, piece, pos, board):
         valid_moves = []
         squares = [Position(pos.x + direction[0], pos.y + direction[1])
@@ -215,6 +235,7 @@ class Game:
                     break
         return valid_moves
 
+    # knight valid moves are being calculated by adding the vector to a clicked position
     def get_knight_valid_moves(self, piece, pos):
         valid_moves = []
         squares = [Position(pos.x + direction[0], pos.y + direction[1])
@@ -231,6 +252,7 @@ class Game:
 
         return valid_moves
 
+    # legal moves are moves that don't lead to a players own king getting checked (the pin)
     def get_legal_moves(self, valid_moves, piece, prev_pos):
         valid_moves_copy = copy.deepcopy(valid_moves)
 
@@ -266,16 +288,6 @@ class Game:
         return False
 
     def is_checkmate(self):
-        # print("valid moves")
-
-        # for abcd in self.white_king.valid_moves:
-        #     print(abcd.x, abcd.y)
-
-        # print(self.white_king.valid_moves)
-        # print("check")
-        # print(self.white_king.check)
-        # print(self.are_valid_moves_left(white=True))
-
         if self.white_king.check and self.white_king.valid_moves == []:
             return not self.are_valid_moves_left(white=True)
 
@@ -313,10 +325,11 @@ class Game:
                                 valid_moves = self.white_king.valid_moves
                             else:
                                 valid_moves = self.black_king.valid_moves
-                            
-                        # print("valid_moves")
-                        # for xd in valid_moves:
-                            # print(xd.x, xd.y)
+
+                        for move in copy.deepcopy(valid_moves):
+                            if self.board[move.x][move.y] != None:
+                                if self.board[move.x][move.y].isupper() == white:
+                                    valid_moves.remove(move)
 
                         if len(valid_moves) != 0:
                             return True
@@ -336,6 +349,7 @@ class Game:
 
         return False
 
+    # checks pawn moves that can include a double push or capturing possibility
     def get_pawn_valid_moves(self, pos):
         valid_moves = []
 
@@ -397,9 +411,13 @@ class Game:
         return self.white_king.check
 
     def is_stalemate(self):
-        if globals.IS_WHITES_TURN:
-            return not self.are_valid_moves_left(white=True) and not self.white_king.check
-        else:
+        stalemate = not self.are_valid_moves_left(white=True) and \
+            not self.white_king.check
+
+        if stalemate:
+            return stalemate
+
+        if not stalemate:
             return not self.are_valid_moves_left(white=False) and not self.black_king.check
 
     def set_black_king_has_moved(self):
@@ -417,6 +435,7 @@ class Game:
     def is_rook(self, piece):
         return piece == "r" or piece == "R"
 
+    # when castling would lead to a king getting checked, the move is removed from the valid king moves
     def check_castling_collision(self, is_piece_white, valid_moves):
         if not is_piece_white:
             opposite_king = self.white_king
@@ -516,6 +535,8 @@ class Game:
         elif black_king:
             self.black_king.set_is_long_castle_possible(is_possible)
 
+    # reseting everything when two players propose a rematch and assigning opposite color
+    # to a player
     def rematch(self, board):
         globals.IS_WHITES_TURN = True
         globals.FEN_SEQUENCE = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR KQkq"
@@ -565,10 +586,8 @@ class Game:
             globals.IS_DRAW = True
 
         if self.is_checkmate():
-            print("!!!!!!!!!!!!!!!!!!CHECKMATE!!!!!!!!!!!!!!!!!!!!!")
             globals.IS_CHECKMATE = True
 
         if self.is_stalemate():
             globals.IS_STALEMATE = True
             globals.IS_DRAW = True
-

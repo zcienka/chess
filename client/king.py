@@ -2,7 +2,9 @@ from position import Position
 from constants import *
 import globals
 
-
+'''
+The class contains information about castling and king valid moves.
+'''
 class King:
     def __init__(self, piece):
         self.check = False

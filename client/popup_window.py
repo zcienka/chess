@@ -4,7 +4,10 @@ from position import Position
 import os
 import globals
 
-
+'''
+Class is responsible for showing the user informations about the course of the game (draw, checkmate, user disconnecting, user connecting)
+or server errors and loading screens.
+'''
 class PopupWindow:
     def __init__(self, surface):
         self.surface = surface
@@ -55,7 +58,19 @@ class PopupWindow:
             id = self.get_button_clicked_id(clicked_pos, button_name, text)
 
             if id == 0:
-                os._exit(1)
+                os._exit(0)
+
+    def display_server_ip_error(self, clicked_pos=None):
+        error_text = "Error"
+        text = ["Server IP address was not", "passed"]
+        button_name = ["Exit"]
+        self.display(error_text, text, button_name, color=RED)
+
+        if clicked_pos != None:
+            id = self.get_button_clicked_id(clicked_pos, button_name, text)
+
+            if id == 0:
+                os._exit(0)
 
     def display_checkmate(self, connection, clicked_pos=None):
         top_text = "Game over"
@@ -129,6 +144,25 @@ class PopupWindow:
             if id == 0:
                 connection.disconnect()
                 os._exit(0)
+
+    def display_loading(self):
+        popup_window_size = Position(320, 240)
+        window_text = "Loading..."
+
+        window_line = self.small_font.render(window_text, True, BLACK)
+        text_coordinates = window_line.get_rect()
+
+        popup_window_coordinates = Position(WINDOW_SIZE / 2 - popup_window_size.x / 2,
+                                            WINDOW_SIZE / 2 - popup_window_size.y / 2)
+
+        window_size = pygame.Rect(popup_window_coordinates.x, popup_window_coordinates.y,
+                                  popup_window_size.x, popup_window_size.y)
+
+        pygame.draw.rect(self.surface, WHITE, window_size, border_radius=16)
+
+        text_coordinates.center = (WINDOW_SIZE / 2,
+                                   WINDOW_SIZE / 2)
+        self.surface.blit(window_line, text_coordinates)
 
     def display(self, window_upper_text, message_lst, button_names, color):
         popup_window_size = Position(320, 240)
@@ -226,7 +260,6 @@ class PopupWindow:
 
             if (button_position.x + button_size[0]) > clicked_pos.x > button_position.x and \
                     (button_position.y + button_size[1]) > clicked_pos.y > button_position.y:
-                print("button 0 clicked")
                 return 0
 
             button_position = Position(popup_window_coordinates.x + 3 * popup_window_size.x / 4 - button_size[0] / 2,
@@ -234,7 +267,6 @@ class PopupWindow:
 
             if (button_position.x + button_size[0]) > clicked_pos.x > button_position.x and \
                     (button_position.y + button_size[1]) > clicked_pos.y > button_position.y:
-                print("button 1 clicked")
                 return 1
 
         else:
@@ -245,7 +277,6 @@ class PopupWindow:
 
             if (button_position.x + button_size[0]) > clicked_pos.x > button_position.x and \
                     (button_position.y + button_size[1]) > clicked_pos.y > button_position.y:
-                print("button 0 clicked")
                 return 0
 
         return None

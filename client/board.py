@@ -3,10 +3,12 @@ from constants import *
 import math
 from position import Position
 import globals
-import numpy
-from position import Position
 
-
+'''
+The class is responsible for showing the board, the pieces, valid moves and checks to the user.
+The board is encoded in FEN (Forsyth–Edwards Notation) strings that contain the information 
+about the current position, pawn double move and castling possibilites.
+'''
 class Board:
     def __init__(self, surface, fen_sequence):
         self.width = 800
@@ -15,8 +17,8 @@ class Board:
         self.rectangle_size = 100
         self.offset = (WINDOW_SIZE - self.width) / 2
         self.fen_sequence = fen_sequence
-        a = pygame.image.load("imgs/w_P.png")
-        pygame.display.set_icon(a)
+        app_icon = pygame.image.load("imgs/w_P.png")
+        pygame.display.set_icon(app_icon)
 
 
     def draw(self):
@@ -150,11 +152,9 @@ class Board:
         if "q" not in castling_part:
             game.set_long_castle_possible(False, black_king=True)
 
-        # !!!!!!!!!!!!!!!!!!!!
         if len(parts) == 3 or (castling_part == "" and len(parts) == 2):
             en_passant_move = self.chessboard_pos_to_board_coordinates(
                 parts[2])
-            # print("EN PASSANT MOVE !!!!!!!!!!!\n\n\n", en_passant_move)
             game.set_pawn_double_push(en_passant_move)
 
         return board

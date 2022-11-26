@@ -2,23 +2,26 @@ from position import Position
 from constants import BOARD_SIZE
 import globals
 
-
+'''
+The class checks for en passant moves, double moves and holds information about 
+last row that enables pawn promotion to queen.
+'''
 class Pawns:
     def __init__(self, is_white):
         self.initial_pawn_positions = []
         self.double_push = None
-        self._first_move = [[-1, 0], [-2, 0]]
-        self._move = [[-1, 0]]
-        self._capture_moves = [[-1, 1], [-1, -1]]
+        self.first_move = [[-1, 0], [-2, 0]]
+        self.move = [[-1, 0]]
+        self.capture_moves = [[-1, 1], [-1, -1]]
 
         if is_white:
             self.initial_pawn_positions = [
                 Position(6, i) for i in range(BOARD_SIZE)]
-            self._promotion_list = [Position(0, i) for i in range(BOARD_SIZE)]
+            self.promotion_list = [Position(0, i) for i in range(BOARD_SIZE)]
         else:
             self.initial_pawn_positions = [
                 Position(1, i) for i in range(BOARD_SIZE)]
-            self._promotion_list = [Position(7, i) for i in range(BOARD_SIZE)]
+            self.promotion_list = [Position(7, i) for i in range(BOARD_SIZE)]
 
     def is_first_move(self, pos):
         return pos in self.initial_pawn_positions
@@ -46,10 +49,10 @@ class Pawns:
     def get_possible_capturing_moves(self, pos, board):
         if board[pos.x][pos.y].isupper():
             possible_captures = [Position(pos.x + move[0], pos.y + move[1])
-                                 for move in self._capture_moves]
+                                 for move in self.capture_moves]
         else:
             possible_captures = [Position(pos.x - move[0], pos.y - move[1])
-                                 for move in self._capture_moves]
+                                 for move in self.capture_moves]
 
         valid_captures = []
 
@@ -60,8 +63,6 @@ class Pawns:
                 if point != None:
                     if point.isupper() != board[pos.x][pos.y].isupper():
                         valid_captures.append(capture)
-                    else:
-                        break
 
         return valid_captures
 
@@ -75,29 +76,31 @@ class Pawns:
         if pos in self.initial_pawn_positions:
             if board[pos.x][pos.y].isupper():
                 valid_moves = [Position(pos.x + move[0], pos.y + move[1])
-                               for move in self._first_move]
+                               for move in self.first_move]
             else:
                 valid_moves = [Position(pos.x - move[0], pos.y - move[1])
-                               for move in self._first_move]
+                               for move in self.first_move]
 
-            for move in valid_moves:
+            for i, move in enumerate(valid_moves):
                 if board[move.x][move.y] != None:
                     valid_moves.remove(move)
+
+                    if i == 0:
+                        valid_moves.clear()
 
             valid_moves.extend(capturing_moves)
         else:
             if board[pos.x][pos.y].isupper():
                 valid_moves = [Position(pos.x + move[0], pos.y + move[1])
-                               for move in self._move]
+                               for move in self.move]
             else:
                 valid_moves = [Position(pos.x - move[0], pos.y - move[1])
-                               for move in self._move]
+                               for move in self.move]
 
             for move in valid_moves:
                 if 0 <= move.x < BOARD_SIZE and 0 <= move.y < BOARD_SIZE:
                     if board[move.x][move.y] != None:
                         valid_moves.remove(move)
-
             valid_moves.extend(capturing_moves)
 
             if opponent_double_push != None:
@@ -122,7 +125,7 @@ class Pawns:
         self.double_push = pos
 
     def is_promotion(self, pos):
-        return pos in self._promotion_list
+        return pos in self.promotion_list
 
     def is_en_passant_move(self, pos, opponent_double_push):
         if opponent_double_push == None:

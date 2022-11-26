@@ -82,25 +82,25 @@ void *cthread(void *arg)
 
 	int currentUserId;
 
-	int availableId = -1;
+	int gameId = -1;
 	for (int i = 0; i < MAX_GAMES; i++)
 	{
 		if (games[i].users[0].isConnected == true && games[i].users[1].isConnected == false)
 		{
-			availableId = i;
+			gameId = i;
 			currentUserId = 1;
 			games[i].users[1].cfd = c->cfd;
 			break;
 		}
 	}
 
-	if (availableId == -1)
+	if (gameId == -1)
 	{
 		for (int i = 0; i < MAX_GAMES; i++)
 		{
 			if (games[i].users[0].isConnected == false && games[i].users[0].isConnected == false)
 			{
-				availableId = i;
+				gameId = i;
 				currentUserId = 0;
 				games[i].users[0].cfd = c->cfd;
 				break;
@@ -120,131 +120,140 @@ void *cthread(void *arg)
 			break;
 		}
 
-		if (userRequest != 0)
+		// if the maximum amout of users are connected, the server responds with 0
+		// otherwise it responds with 1
+		if (strcmp(query, CAN_USER_CONNECT) == 0) 
 		{
-			if (strcmp(query, CAN_USER_CONNECT) == 0)
+			int ok;
+			char isOk[2];
+
+			if (gameId == -1)
 			{
-				int ok;
-				char isOk[2];
-
-				if (availableId == -1)
-				{
-					ok = 0;
-				}
-				else
-				{
-					ok = 1;
-				}
-
-				memset(isOk, 0, strlen(isOk));
-				sprintf(isOk, "%d", ok);
-				send(c->cfd, isOk, strlen(isOk), 0);
-
-				if (ok == 0)
-				{
-					break;
-				}
+				ok = 0;
 			}
-			else if (strcmp(query, ASSIGN_COLOR) == 0)
+			else
 			{
-				int color = games[availableId].users[currentUserId].color;
-
-				char colorStr[2];
-				memset(colorStr, 0, strlen(colorStr));
-				sprintf(colorStr, "%d", color);
-
-				send(c->cfd, colorStr, strlen(colorStr), 0);
-				games[availableId].users[currentUserId].isConnected = true;
+				ok = 1;
 			}
-			else if (strcmp(query, IS_OPPONENT_CONNECTED) == 0)
+
+			memset(isOk, 0, strlen(isOk));
+			sprintf(isOk, "%d", ok);
+			send(c->cfd, isOk, strlen(isOk), 0);
+
+			if (ok == 0)
 			{
-				int opponentId = (currentUserId + 1) % 2;
-
-				struct User opponent = games[availableId].users[opponentId];
-
-				char isOpponentConnectedStr[2];
-				bool isOpponentConnected = opponent.isConnected;
-
-				memset(isOpponentConnectedStr, 0, strlen(isOpponentConnectedStr));
-				sprintf(isOpponentConnectedStr, "%d", isOpponentConnected);
-
-				if (isOpponentConnected)
-				{
-					send(c->cfd, OPPONENT_CONNECTED, strlen(OPPONENT_CONNECTED), 0);
-					send(opponent.cfd, OPPONENT_CONNECTED, strlen(OPPONENT_CONNECTED), 0);
-				}
-				else
-				{
-					send(c->cfd, OPPONENT_CONNECTING, strlen(OPPONENT_CONNECTING), 0);
-				}
-			}
-			else if (strcmp(query, DISCONNECT_USER) == 0)
-			{
-				int opponentId = (currentUserId + 1) % 2;
-				struct User opponent = games[availableId].users[opponentId];
-
-				send(opponent.cfd, OPPONENT_DISCONNECTED, strlen(OPPONENT_DISCONNECTED), 0);
-				games[availableId].users[currentUserId].isConnected = false;
-
 				break;
 			}
-			else if (strcmp(query, REMATCH) == 0)
+		}
+		// server sends information about a color that was randomly generated
+		else if (strcmp(query, ASSIGN_COLOR) == 0)
+		{
+			int color = games[gameId].users[currentUserId].color;
+
+			char colorStr[2];
+			memset(colorStr, 0, strlen(colorStr));
+			sprintf(colorStr, "%d", color);
+
+			send(c->cfd, colorStr, strlen(colorStr), 0);
+			games[gameId].users[currentUserId].isConnected = true;
+		}
+		// if the user is connected, server sends string "OPPONENT_CONNECTED" to the user and the opponent
+		// else it sends string "OPPONENT_CONNECTING"
+		else if (strcmp(query, IS_OPPONENT_CONNECTED) == 0)
+		{
+			int opponentId = (currentUserId + 1) % 2;
+
+			struct User opponent = games[gameId].users[opponentId];
+
+			char isOpponentConnectedStr[2];
+			bool isOpponentConnected = opponent.isConnected;
+
+			memset(isOpponentConnectedStr, 0, strlen(isOpponentConnectedStr));
+			sprintf(isOpponentConnectedStr, "%d", isOpponentConnected);
+
+			if (isOpponentConnected)
 			{
-				int opponentId = (currentUserId + 1) % 2;
-				struct User opponent = games[availableId].users[opponentId];
-
-				games[availableId].users[currentUserId].wantsRematch = true;
-
-				send(opponent.cfd, REMATCH, strlen(REMATCH), 0);
-
-				if (opponent.wantsRematch)
-				{
-					if (games[availableId].users[currentUserId].color == 0)
-					{
-						games[availableId].userIdturn = currentUserId;
-						games[availableId].users[currentUserId].color = 1;
-						games[availableId].users[opponentId].color = 0;
-					}
-					else
-					{
-						games[availableId].userIdturn = (currentUserId + 1) % 2;
-						games[availableId].users[currentUserId].color = 0;
-						games[availableId].users[opponentId].color = 1;
-					}
-					games[availableId].users[currentUserId].wantsRematch = false;
-					games[availableId].users[opponentId].wantsRematch = false;
-				}
+				send(c->cfd, OPPONENT_CONNECTED, strlen(OPPONENT_CONNECTED), 0);
+				send(opponent.cfd, OPPONENT_CONNECTED, strlen(OPPONENT_CONNECTED), 0);
 			}
-			else if (games[availableId].users[0].isConnected &&
-					 games[availableId].users[1].isConnected &&
-					 strcmp(query, "") != 0)
+			else
 			{
-				int turn = games[availableId].userIdturn;
-
-				if (turn == 0)
-				{
-					games[availableId].userIdturn = 1;
-				}
-				else if (turn == 1)
-				{
-					games[availableId].userIdturn = 0;
-				}
-				turn = games[availableId].userIdturn;
-
-				send(games[availableId].users[turn].cfd, query, strlen(query), 0);
+				send(c->cfd, OPPONENT_CONNECTING, strlen(OPPONENT_CONNECTING), 0);
 			}
+		}
+		// if the client wants to disconnect, it gets marked as disconnected and 
+		// it exits the loop and the memory gets freed
+		else if (strcmp(query, DISCONNECT_USER) == 0)
+		{
+			int opponentId = (currentUserId + 1) % 2;
+			struct User opponent = games[gameId].users[opponentId];
+
+			send(opponent.cfd, OPPONENT_DISCONNECTED, strlen(OPPONENT_DISCONNECTED), 0);
+			games[gameId].users[currentUserId].isConnected = false;
+
+			break;
+		}
+		// when a user wants a rematch, the information about that is saved to the 
+		// array and if both users want rematch the user colors in an array
+		// are getting changed
+		else if (strcmp(query, REMATCH) == 0)
+		{
+			int opponentId = (currentUserId + 1) % 2;
+			struct User opponent = games[gameId].users[opponentId];
+
+			games[gameId].users[currentUserId].wantsRematch = true;
+
+			send(opponent.cfd, REMATCH, strlen(REMATCH), 0);
+
+			if (opponent.wantsRematch)
+			{
+				if (games[gameId].users[currentUserId].color == 0)
+				{
+					games[gameId].userIdturn = currentUserId;
+					games[gameId].users[currentUserId].color = 1;
+					games[gameId].users[opponentId].color = 0;
+				}
+				else
+				{
+					games[gameId].userIdturn = (currentUserId + 1) % 2;
+					games[gameId].users[currentUserId].color = 0;
+					games[gameId].users[opponentId].color = 1;
+				}
+				games[gameId].users[currentUserId].wantsRematch = false;
+				games[gameId].users[opponentId].wantsRematch = false;
+			}
+		}
+		// if the server receives FEN sequence, it sends it to the opponent
+		else if (games[gameId].users[0].isConnected &&
+				 games[gameId].users[1].isConnected &&
+				 strcmp(query, "") != 0)
+		{
+			int turn = games[gameId].userIdturn;
+
+			if (turn == 0)
+			{
+				games[gameId].userIdturn = 1;
+			}
+			else if (turn == 1)
+			{
+				games[gameId].userIdturn = 0;
+			}
+			turn = games[gameId].userIdturn;
+
+			send(games[gameId].users[turn].cfd, query, strlen(query), 0);
 		}
 	}
 	int opponentId = (currentUserId + 1) % 2;
 
-	struct User opponent = games[availableId].users[opponentId];
+	struct User opponent = games[gameId].users[opponentId];
 
-	if (!opponent.isConnected && !games[availableId].users[currentUserId].isConnected)
+	// when both users disconnect, the new game gets generated
+	if (!opponent.isConnected && !games[gameId].users[currentUserId].isConnected)
 	{
-		generateNewGame(availableId);
+		generateNewGame(gameId);
 	}
 
-	close(c->cfd);
+	close(c->cfd); // after the client disconnects, the memory needs to be released
 
 	return EXIT_SUCCESS;
 }
@@ -279,7 +288,7 @@ int main(int argc, char *argv[])
 		slt = sizeof(c->caddr);
 		c->cfd = accept(sfd, (struct sockaddr *)&c->caddr, &slt);
 		pthread_create(&tid, NULL, cthread, c);
-		pthread_detach(tid);
+		pthread_detach(tid); // when thread ends, it automatically gets deleted from the system
 	}
 
 	close(sfd);
